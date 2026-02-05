@@ -55,14 +55,6 @@ button:hover{
   border-radius:5px;
   border:none;
 }
-function sendMsg(){
-  let msg = document.getElementById("msgInput").value;
-  if(msg === "") return;
-
-  let chat = document.getElementById("chatBox");
-  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
-  document.getElementById("msgInput").value = "";
-}
 </style>
 </head>
 <body>
@@ -86,28 +78,39 @@ function sendMsg(){
 </body>
 
 <script>
+
 function startChat(){
+ document.getElementById("status").innerText =
+ "Status: Requesting microphone...";
+
+ navigator.mediaDevices.getUserMedia({ audio: true })
+ .then(function(stream){
 
   document.getElementById("status").innerText =
-   "Status: Requesting microphone...";
+  "Status: Searching for user...";
 
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(function(stream){
+  setTimeout(function(){
+   document.getElementById("status").innerText =
+   "Status: Connected!";
+  },3000);
 
-      document.getElementById("status").innerText =
-       "Status: Searching for user...";
+ })
+ .catch(function(error){
+  document.getElementById("status").innerText =
+  "Status: Microphone denied!";
+ });
+}
+function sendMsg(){
+ let msg = document.getElementById("msgInput").value;
+ if(msg === "") return;
 
-      setTimeout(function(){
-        document.getElementById("status").innerText =
-         "Status: Connected!";
-      }, 3000);
+ let chat = document.getElementById("chatBox");
+ chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
+ document.getElementById("msgInput").value = "";
 
-    })
-    .catch(function(error){
-      document.getElementById("status").innerText =
-       "Status: Microphone denied!";
-    });
-
+ setTimeout(function(){
+  chat.innerHTML += "<p><b>Stranger:</b> Nice to meet you 😊</p>";
+ },1000);
 }
 </script>
 
