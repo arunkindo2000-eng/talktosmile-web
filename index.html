@@ -38,6 +38,16 @@ button:hover{
   margin-top:10px;
   color:#a5f3fc;
 }
+#chatBox{
+  margin-top:15px;
+  background:#020617;
+  padding:10px;
+  border-radius:6px;
+  height:120px;
+  overflow-y:auto;
+  text-align:left;
+  font-size:14px;
+}
 </style>
 </head>
 <body>
@@ -51,7 +61,9 @@ button:hover{
 <button onclick="startChat()">Start Chat</button>
 
 <p id="status">Status: Idle</p>
-
+<div id="chatBox">
+  <p><b>Stranger:</b> Hello 👋</p>
+</div>
 </div>
 
 </body>
