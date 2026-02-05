@@ -48,6 +48,21 @@ button:hover{
   text-align:left;
   font-size:14px;
 }
+#msgInput{
+  width:90%;
+  padding:8px;
+  margin-top:10px;
+  border-radius:5px;
+  border:none;
+}
+function sendMsg(){
+  let msg = document.getElementById("msgInput").value;
+  if(msg === "") return;
+
+  let chat = document.getElementById("chatBox");
+  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
+  document.getElementById("msgInput").value = "";
+}
 </style>
 </head>
 <body>
@@ -62,7 +77,9 @@ button:hover{
 
 <p id="status">Status: Idle</p>
 <div id="chatBox">
-  <p><b>Stranger:</b> Hello 👋</p>
+<input type="text" id="msgInput" placeholder="Type your message..." />
+<button onclick="sendMsg()">Send</button>
+<p><b>Stranger:</b> Hello 👋</p>
 </div>
 </div>
 
