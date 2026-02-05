@@ -13,13 +13,27 @@
 
 <script>
 function startChat(){
+
+  document.getElementById("status").innerText =
+   "Status: Requesting microphone...";
+
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(function(stream){
-      alert("Microphone Access Granted!");
+
+      document.getElementById("status").innerText =
+       "Status: Searching for user...";
+
+      setTimeout(function(){
+        document.getElementById("status").innerText =
+         "Status: Connected!";
+      }, 3000);
+
     })
     .catch(function(error){
-      alert("Microphone Permission Denied!");
+      document.getElementById("status").innerText =
+       "Status: Microphone denied!";
     });
+
 }
 </script>
 
