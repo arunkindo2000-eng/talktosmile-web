@@ -12,7 +12,13 @@
 
 <script>
 function startChat(){
-  alert("Connecting to random user...");
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(function(stream){
+      alert("Microphone Access Granted!");
+    })
+    .catch(function(error){
+      alert("Microphone Permission Denied!");
+    });
 }
 </script>
 
