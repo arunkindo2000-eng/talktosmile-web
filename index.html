@@ -108,16 +108,20 @@ function startChat(){
  });
 }
 function sendMsg(){
- let msg = document.getElementById("msgInput").value;
- if(msg === "") return;
+  let msg = document.getElementById("msgInput").value;
+  if(msg === "") return;
 
- let chat = document.getElementById("chatBox");
- chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
- document.getElementById("msgInput").value = "";
+  let chat = document.getElementById("chatBox");
+  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
+  document.getElementById("msgInput").value = "";
 
- setTimeout(function(){
-  chat.innerHTML += "<p><b>Stranger:</b> Nice to meet you 😊</p>";
- },1000);
+  // typing indicator
+  chat.innerHTML += "<p id='typing'><i>Stranger is typing...</i></p>";
+
+  setTimeout(function(){
+    document.getElementById("typing").remove();
+    chat.innerHTML += "<p><b>Stranger:</b> Nice to meet you 😊</p>";
+  },1500);
 }
 function disconnectChat(){
   document.getElementById("status").innerText = "Status: Disconnected";
