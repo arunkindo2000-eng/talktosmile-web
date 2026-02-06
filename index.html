@@ -70,7 +70,7 @@ button:hover{
 
 <p id="status">Status: Idle</p>
 <div id="chatBox">
-<input type="text" id="msgInput" placeholder="Type your message..." />
+<input type="text" id="msgInput" placeholder="Type your message..." onkeypress="handleEnter(event)" />
 <button onclick="sendMsg()">Send</button>
 <p><b>Stranger:</b> Hello 👋</p>
 </div>
