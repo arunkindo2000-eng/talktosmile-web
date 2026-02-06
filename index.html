@@ -69,79 +69,36 @@ button:hover{
 <button onclick="disconnectChat()">Disconnect</button>
 
 <p id="status">Status: Idle</p>
-<div id="chatBox"></div>
+ <div id="chatBox"></div>
 
 <input type="text" id="msgInput" placeholder="Type your message..." />
 <button onclick="sendMsg()">Send</button>
-<p><b>Stranger:</b> Hello 👋</p>
-</div>
-</div>
-
-</body>
-
 <script>
-
- function sendMsg(){
-  let msg = document.getElementById("msgInput").value;
-  if(msg === "") return;
-
-  let chat = document.getElementById("chatBox");
-  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
-  document.getElementById("msgInput").value = "";
-
-  setTimeout(function(){
-    chat.innerHTML += "<p><b>Stranger:</b> Hello 👋</p>";
-  },1000);
- }
-
- function handleEnter(e){
-  if(e.key === "Enter"){
-    sendMsg();
-  }
- }
-
 function startChat(){
- document.getElementById("status").innerText =
- "Status: Requesting microphone...";
-
- navigator.mediaDevices.getUserMedia({ audio: true })
- .then(function(stream){
-
-  document.getElementById("status").innerText =
-  "Status: Searching for user...";
-
-  setTimeout(function(){
-   document.getElementById("status").innerText =
-   "Status: Connected!";
-  },3000);
-
- })
- .catch(function(error){
-  document.getElementById("status").innerText =
-  "Status: Microphone denied!";
- });
+ document.getElementById("status").innerText="Status: Connected!";
 }
-function sendMsg(){
-  let msg = document.getElementById("msgInput").value;
-  if(msg === "") return;
 
-  let chat = document.getElementById("chatBox");
-  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
-  document.getElementById("msgInput").value = "";
-
-  // typing indicator
-  chat.innerHTML += "<p id='typing'><i>Stranger is typing...</i></p>";
-
-  setTimeout(function(){
-    document.getElementById("typing").remove();
-    chat.innerHTML += "<p><b>Stranger:</b> Nice to meet you 😊</p>";
-  },1500);
-}
 function disconnectChat(){
-  document.getElementById("status").innerText = "Status: Disconnected";
-  document.getElementById("chatBox").innerHTML = "";
+ document.getElementById("status").innerText="Status: Disconnected";
+ document.getElementById("chatBox").innerHTML="";
+}
+
+function sendMsg(){
+ let msg=document.getElementById("msgInput").value;
+ if(msg==="") return;
+
+ let chat=document.getElementById("chatBox");
+ chat.innerHTML+="<p><b>You:</b> "+msg+"</p>";
+ chat.scrollTop = chat.scrollHeight;
+ document.getElementById("msgInput").value="";
+
+ setTimeout(function(){
+  chat.innerHTML+="<p><b>Stranger:</b> Hello 👋</p>";
+  chat.scrollTop = chat.scrollHeight;
+ },1000);
 }
 </script>
-
+</div>
 </body>
+ 
 </html>
