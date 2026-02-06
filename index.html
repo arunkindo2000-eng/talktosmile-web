@@ -69,8 +69,9 @@ button:hover{
 <button onclick="disconnectChat()">Disconnect</button>
 
 <p id="status">Status: Idle</p>
-<div id="chatBox">
-<input type="text" id="msgInput" placeholder="Type your message..." onkeypress="handleEnter(event)" />
+<div id="chatBox"></div>
+
+<input type="text" id="msgInput" placeholder="Type your message..." />
 <button onclick="sendMsg()">Send</button>
 <p><b>Stranger:</b> Hello 👋</p>
 </div>
@@ -79,6 +80,19 @@ button:hover{
 </body>
 
 <script>
+
+ function sendMsg(){
+  let msg = document.getElementById("msgInput").value;
+  if(msg === "") return;
+
+  let chat = document.getElementById("chatBox");
+  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
+  document.getElementById("msgInput").value = "";
+
+  setTimeout(function(){
+    chat.innerHTML += "<p><b>Stranger:</b> Hello 👋</p>";
+  },1000);
+ }
 
  function handleEnter(e){
   if(e.key === "Enter"){
