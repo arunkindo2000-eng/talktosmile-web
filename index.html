@@ -80,6 +80,12 @@ button:hover{
 
 <script>
 
+ function handleEnter(e){
+  if(e.key === "Enter"){
+    sendMsg();
+  }
+ }
+
 function startChat(){
  document.getElementById("status").innerText =
  "Status: Requesting microphone...";
