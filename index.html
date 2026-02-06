@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
 <title>TalkToSmile</title>
@@ -112,6 +112,10 @@ function sendMsg(){
  setTimeout(function(){
   chat.innerHTML += "<p><b>Stranger:</b> Nice to meet you 😊</p>";
  },1000);
+}
+function disconnectChat(){
+  document.getElementById("status").innerText = "Status: Disconnected";
+  document.getElementById("chatBox").innerHTML = "";
 }
 </script>
 
