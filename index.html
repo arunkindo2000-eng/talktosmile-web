@@ -71,7 +71,7 @@ button:hover{
 <p id="status">Status: Idle</p>
  <div id="chatBox"></div>
 
-<input type="text" id="msgInput" placeholder="Type your message..." onkeydown="if(event.key==='Enter') sendMsg()" />
+<input type="text" id="msgInput" placeholder="Type your message..." onkeyup="checkEnter(event)" />
 <button onclick="sendMsg()">Send</button>
 <script>
 function startChat(){
@@ -82,7 +82,11 @@ function disconnectChat(){
  document.getElementById("status").innerText="Status: Disconnected";
  document.getElementById("chatBox").innerHTML="";
 }
-
+function checkEnter(e){
+  if(e.keyCode === 13){
+    sendMsg();
+  }
+}
 function sendMsg(){
  let msg=document.getElementById("msgInput").value;
  if(msg==="") return;
