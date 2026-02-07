@@ -83,12 +83,15 @@ button:hover{
   "That's interesting 😄"
 ];
 function startChat(){
- document.getElementById("status").innerText="Status: Connected!";
+  document.getElementById("status").innerText="Status: Connected!";
+  let chat=document.getElementById("chatBox");
+  chat.innerHTML="<p><b>Stranger:</b> Hi 👋 Let’s chat!</p>";
 }
+ 
 
 function disconnectChat(){
- document.getElementById("status").innerText="Status: Disconnected";
- document.getElementById("chatBox").innerHTML="";
+  document.getElementById("status").innerText="Status: Disconnected";
+  document.getElementById("chatBox").innerHTML="<p><i>Chat ended.</i></p>";
 }
 function checkEnter(e){
   if(e.keyCode === 13){
