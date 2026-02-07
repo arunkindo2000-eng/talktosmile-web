@@ -74,6 +74,14 @@ button:hover{
 <input type="text" id="msgInput" placeholder="Type your message..." onkeyup="checkEnter(event)" />
 <button onclick="sendMsg()">Send</button>
 <script>
+ let replies = [
+  "Hi 😊",
+  "Hello 👋",
+  "How are you?",
+  "Nice to meet you 🙂",
+  "Where are you from?",
+  "That's interesting 😄"
+];
 function startChat(){
  document.getElementById("status").innerText="Status: Connected!";
 }
@@ -97,7 +105,11 @@ function sendMsg(){
  document.getElementById("msgInput").value="";
 
  setTimeout(function(){
-  chat.innerHTML+="<p><b>Stranger:</b> Hello 👋</p>";
+  let randomIndex = Math.floor(Math.random() * replies.length);
+let randomReply = replies[randomIndex];
+
+chat.innerHTML += "<p><b>Stranger:</b> " + randomReply + "</p>";
+chat.scrollTop = chat.scrollHeight;
   chat.scrollTop = chat.scrollHeight;
  },1000);
 }
