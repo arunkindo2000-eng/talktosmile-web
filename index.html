@@ -99,6 +99,23 @@ function startChat(){
     document.getElementById("status").innerText = "Status: Disconnected";
   };
 }
+
+function sendMsg(){
+  if(!socket || socket.readyState !== 1){
+    alert("Server connected nahi hai");
+    return;
+  }
+
+  let msg = document.getElementById("msgInput").value;
+  if(msg === "") return;
+
+  let chat = document.getElementById("chatBox");
+  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
+  chat.scrollTop = chat.scrollHeight;
+
+  socket.send(msg);
+  document.getElementById("msgInput").value = "";
+}
 </script>
 </div>
 </body>
