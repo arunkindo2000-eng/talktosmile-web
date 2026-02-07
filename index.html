@@ -76,12 +76,23 @@ button:hover{
 <script>
 let socket;
 
-function startChat() {
+function startChat(){
   socket = new WebSocket("wss://talktosmile-server.onrender.com");
 
   socket.onopen = () => {
-    document.getElementById("status").innerText = "Status: Connected!";
+    document.getElementById("status").innerText = "Status: Connected";
   };
+
+  socket.onmessage = (event) => {
+    let chat = document.getElementById("chatBox");
+    chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
+    chat.scrollTop = chat.scrollHeight;
+  };
+
+  socket.onclose = () => {
+    document.getElementById("status").innerText = "Status: Disconnected";
+  };
+}
 
   socket.onmessage = (event) => {
     let chat = document.getElementById("chatBox");
