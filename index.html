@@ -76,24 +76,25 @@ button:hover{
 <script>
 let socket;
 
-function sendMsg(){
-  let msg = document.getElementById("msgInput").value;
+// 🔹 STEP 3: server se connect hona
+function startChat(){
+  socket = new WebSocket("wss://talktosmile-server.onrender.com");
 
-  // agar empty ho to kuch mat karo
-  if(msg === "") return;
+  document.getElementById("status").innerText = "Status: Connecting...";
 
-  // chat box
-  let chat = document.getElementById("chatBox");
+  socket.onopen = function(){
+    document.getElementById("status").innerText = "Status: Connected";
+  };
 
-  // screen par YOUR message dikhao
-  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
-  chat.scrollTop = chat.scrollHeight;
+  socket.onmessage = function(event){
+    let chat = document.getElementById("chatBox");
+    chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
+    chat.scrollTop = chat.scrollHeight;
+  };
 
-  // SERVER ko message bhejo
-  socket.send(msg);
-
-  // input box clear
-  document.getElementById("msgInput").value = "";
+  socket.onclose = function(){
+    document.getElementById("status").innerText = "Status: Disconnected";
+  };
 }
 </script>
 </div>
