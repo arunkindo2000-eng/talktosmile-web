@@ -76,52 +76,24 @@ button:hover{
 <script>
 let socket;
 
-function startChat(){
-  socket = new WebSocket("wss://talktosmile-server.onrender.com");
+function sendMsg(){
+  let msg = document.getElementById("msgInput").value;
 
-  socket.onopen = () => {
-    document.getElementById("status").innerText = "Status: Connected";
-  };
+  // agar empty ho to kuch mat karo
+  if(msg === "") return;
 
-  socket.onmessage = (event) => {
-    let chat = document.getElementById("chatBox");
-    chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
-    chat.scrollTop = chat.scrollHeight;
-  };
-
-  socket.onclose = () => {
-    document.getElementById("status").innerText = "Status: Disconnected";
-  };
-}
-
-  socket.onmessage = (event) => {
-    let chat = document.getElementById("chatBox");
-    chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
-    chat.scrollTop = chat.scrollHeight;
-  };
-
-  socket.onclose = () => {
-    document.getElementById("status").innerText = "Status: Disconnected";
-  };
-}
-
-function disconnectChat() {
-  if (socket) socket.close();
-  document.getElementById("chatBox").innerHTML = "";
-}
-
-function sendMsg() {
-  let msgInput = document.getElementById("msgInput");
-  let msg = msgInput.value;
-  if (msg === "" || !socket) return;
-
-  socket.send(msg);
-
+  // chat box
   let chat = document.getElementById("chatBox");
+
+  // screen par YOUR message dikhao
   chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
   chat.scrollTop = chat.scrollHeight;
 
-  msgInput.value = "";
+  // SERVER ko message bhejo
+  socket.send(msg);
+
+  // input box clear
+  document.getElementById("msgInput").value = "";
 }
 </script>
 </div>
