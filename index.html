@@ -74,57 +74,43 @@ button:hover{
 <input type="text" id="msgInput" placeholder="Type your message..." onkeyup="checkEnter(event)" />
 <button onclick="sendMsg()">Send</button>
 <script>
- let replies = [
-  "Hi 😊",
-  "Hello 👋",
-  "How are you?",
-  "Nice to meet you 🙂",
-  "Where are you from?",
-  "That's interesting 😄"
-  "Where are you from?",
-"What are you doing?",
-"Do you like chatting?",
-"Tell me something about you 😄"
-];
-function startChat(){
-  document.getElementById("status").innerText="Status: Connected!";
-  let chat=document.getElementById("chatBox");
-  chat.innerHTML="<p><b>Stranger:</b> Hi 👋 Let’s chat!</p>";
+let socket;
+
+function startChat() {
+  socket = new WebSocket("wss://talktosmile-server.onrender.com");
+
+  socket.onopen = () => {
+    document.getElementById("status").innerText = "Status: Connected!";
+  };
+
+  socket.onmessage = (event) => {
+    let chat = document.getElementById("chatBox");
+    chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
+    chat.scrollTop = chat.scrollHeight;
+  };
+
+  socket.onclose = () => {
+    document.getElementById("status").innerText = "Status: Disconnected";
+  };
 }
- 
 
-function disconnectChat(){
-  document.getElementById("status").innerText="Status: Disconnected";
-  document.getElementById("chatBox").innerHTML="<p><i>Chat ended.</i></p>";
+function disconnectChat() {
+  if (socket) socket.close();
+  document.getElementById("chatBox").innerHTML = "";
 }
-function checkEnter(e){
-  if(e.keyCode === 13){
-    sendMsg();
-  }
-}
-function sendMsg(){
- let msg=document.getElementById("msgInput").value;
- if(msg==="") return;
 
- let chat=document.getElementById("chatBox");
- chat.innerHTML+="<p><b>You:</b> "+msg+"</p>";
- chat.scrollTop = chat.scrollHeight;
- document.getElementById("msgInput").value="";
+function sendMsg() {
+  let msgInput = document.getElementById("msgInput");
+  let msg = msgInput.value;
+  if (msg === "" || !socket) return;
 
- // typing indicator
-chat.innerHTML += "<p id='typing'><i>Stranger is typing...</i></p>";
-chat.scrollTop = chat.scrollHeight;
+  socket.send(msg);
 
-setTimeout(function(){
-  let typing = document.getElementById("typing");
-  if(typing) typing.remove();
-
-  let randomIndex = Math.floor(Math.random() * replies.length);
-  let randomReply = replies[randomIndex];
-
-  chat.innerHTML += "<p><b>Stranger:</b> " + randomReply + "</p>";
+  let chat = document.getElementById("chatBox");
+  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
   chat.scrollTop = chat.scrollHeight;
-},1500);
+
+  msgInput.value = "";
 }
 </script>
 </div>
