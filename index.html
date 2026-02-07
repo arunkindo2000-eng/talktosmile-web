@@ -76,7 +76,6 @@ button:hover{
 <script>
 let socket;
 
-// 🔹 STEP 3: server se connect hona
 function startChat(){
   socket = new WebSocket("wss://talktosmile-server.onrender.com");
 
@@ -90,6 +89,10 @@ function startChat(){
     let chat = document.getElementById("chatBox");
     chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
     chat.scrollTop = chat.scrollHeight;
+  };
+
+  socket.onerror = function(){
+    document.getElementById("status").innerText = "Status: Server Error";
   };
 
   socket.onclose = function(){
