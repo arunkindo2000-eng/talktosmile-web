@@ -71,10 +71,21 @@ button:hover{
 <p id="status">Status: Idle</p>
  <div id="chatBox"></div>
 
-<input type="text" id="msgInput" placeholder="Type your message..." onkeyup="checkEnter(event)" />
+<input
+  type="text"
+  id="msgInput"
+  placeholder="Type your message..."
+  oninput="typing()"
+  onkeyup="checkEnter(event)"
+/>
 <button onclick="sendMsg()">Send</button>
 <script>
 let socket;
+ function typing() {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send("__typing__");
+  }
+ }
 
 function startChat(){
   socket = new WebSocket("wss://talktosmile-server.onrender.com");
@@ -85,11 +96,19 @@ function startChat(){
     document.getElementById("status").innerText = "Status: Connected";
   };
 
-  socket.onmessage = function(event){
-    let chat = document.getElementById("chatBox");
-    chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
-    chat.scrollTop = chat.scrollHeight;
-  };
+  socket.onmessage = function(event) {
+  let chat = document.getElementById("chatBox");
+
+  if (event.data === "__typing__") {
+    document.getElementById("status").innerText = "Stranger is typing...";
+    return;
+  }
+
+  document.getElementById("status").innerText = "Status: Connected";
+
+  chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
+  chat.scrollTop = chat.scrollHeight;
+};
 
   socket.onerror = function(){
     document.getElementById("status").innerText = "Status: Server Error";
@@ -101,6 +120,7 @@ function startChat(){
 }
 
 function sendMsg(){
+ document.getElementById("status").innerText = "Status: Connected";
   if(!socket || socket.readyState !== 1){
     alert("Server connected nahi hai");
     return;
