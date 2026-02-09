@@ -95,14 +95,31 @@ function startChat(){
 
   socket.onmessage = function(event) {
   let chat = document.getElementById("chatBox");
+  let status = document.getElementById("status");
 
+  // typing signal
   if (event.data === "__typing__") {
-    document.getElementById("status").innerText = "Stranger is typing...";
+    status.innerText = "Stranger is typing...";
     return;
   }
 
-  document.getElementById("status").innerText = "Status: Connected";
+  // stranger connected
+  if (event.data === "Stranger connected!") {
+    chat.innerHTML = ""; // 🔥 old chat clear
+    status.innerText = "Status: Connected";
+    chat.innerHTML += "<p><b>Stranger:</b> Stranger connected!</p>";
+    return;
+  }
 
+  // stranger disconnected
+  if (event.data === "Stranger disconnected.") {
+    status.innerText = "Status: Waiting for a stranger...";
+    chat.innerHTML += "<p><b>Stranger:</b> Stranger disconnected.</p>";
+    return;
+  }
+
+  // normal message
+  status.innerText = "Status: Connected";
   chat.innerHTML += "<p><b>Stranger:</b> " + event.data + "</p>";
   chat.scrollTop = chat.scrollHeight;
 };
