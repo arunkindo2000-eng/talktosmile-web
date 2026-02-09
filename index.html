@@ -138,11 +138,14 @@ button.primary{
 <p class="subtitle">Random Voice Chat With Strangers</p>
 <p class="trust">100% Anonymous • No Login Required • Free Chat</p>
 
-      <button onclick="startChat()">Start Chat</button>
-      <button onclick="disconnectChat()">Disconnect</button>
-      <button onclick="nextChat()">Next</button>
+<input id="msgInput" placeholder="Type your message..." />
+<button onclick="sendMessage()">Send</button>
 
-      <p id="status">Status: Idle</p>
+<button onclick="startChat()">Start Chat</button>
+<button onclick="disconnectChat()">Disconnect</button>
+<button onclick="nextChat()">Next</button>
+
+<p id="status">Status: Idle</p>
 
       <div id="chatBox"></div>
 
