@@ -74,6 +74,7 @@
 
       <button onclick="startChat()">Start Chat</button>
       <button onclick="disconnectChat()">Disconnect</button>
+      <button onclick="nextChat()">Next</button>
 
       <p id="status">Status: Idle</p>
 
@@ -123,6 +124,18 @@ function startChat(){
   socket.onerror = () => {
     document.getElementById("status").innerText = "Status: Server Error";
   };
+}
+function nextChat(){
+  if(socket){
+    socket.close(); // current stranger disconnect
+  }
+
+  document.getElementById("chatBox").innerHTML = "";
+  document.getElementById("status").innerText = "Status: Finding new stranger...";
+
+  setTimeout(() => {
+    startChat(); // new stranger
+  }, 500);
 }
 
 function disconnectChat(){
