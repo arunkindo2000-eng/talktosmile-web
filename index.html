@@ -1,159 +1,162 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
-<title>TalkToSmile</title
+  <title>TalkToSmile</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body{
-  background:#020617;
-  color:white;
-  font-family:Arial;
-  margin:0;
-  padding:20px 0;
-}
- .box{
-  background:#0f172a;
-  padding:20px;
-  width:90%;
-  max-width:420px;
-  text-align:center;
-  border-radius:16px;
-  box-shadow:0 0 25px #38bdf8;
- }
 
-button{
-  padding:12px 20px;
-  background:#38bdf8;
-  border:none;
-  border-radius:6px;
-  font-size:16px;
-}
-button:hover{
-  background:#0ea5e9;
-}
+  <style>
+    body{
+      background:#020617;
+      color:white;
+      font-family:Arial;
+      margin:0;
+    }
 
-#status{
-  margin-top:10px;
-  color:#a5f3fc;
-}
-#chatBox{
-  margin-top:15px;
-  background:#020617;
-  padding:10px;
-  border-radius:6px;
-  height:220px;
-  max-height:220px;
-  overflow-y:auto;
-  text-align:left;
-  font-size:14px;
-}
-#msgInput{
-  width:90%;
-  padding:8px;
-  margin-top:10px;
-  border-radius:5px;
-  border:none;
-}
-</style>
+    .page{
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding-bottom:120px;
+    }
+
+    .box{
+      background:#0f172a;
+      padding:20px;
+      width:90%;
+      max-width:420px;
+      text-align:center;
+      border-radius:16px;
+      box-shadow:0 0 25px #38bdf8;
+    }
+
+    button{
+      padding:12px 20px;
+      background:#38bdf8;
+      border:none;
+      border-radius:6px;
+      font-size:16px;
+      margin:5px;
+    }
+
+    #status{
+      margin-top:10px;
+      color:#a5f3fc;
+    }
+
+    #chatBox{
+      margin-top:15px;
+      background:#020617;
+      padding:10px;
+      border-radius:6px;
+      height:220px;
+      overflow-y:auto;
+      text-align:left;
+      font-size:14px;
+    }
+
+    #msgInput{
+      width:90%;
+      padding:8px;
+      margin-top:10px;
+      border-radius:5px;
+      border:none;
+    }
+  </style>
 </head>
+
 <body>
+  <div class="page">
+    <div class="box">
 
-<div class="box">
+      <h1>TalkToSmile</h1>
+      <p>Random Voice Chat With Strangers</p>
 
-<h1>TalkToSmile</h1>
+      <button onclick="startChat()">Start Chat</button>
+      <button onclick="disconnectChat()">Disconnect</button>
 
-<p>Random Voice Chat With Strangers</p>
+      <p id="status">Status: Idle</p>
 
-<button onclick="startChat()">Start Chat</button>
-<button onclick="disconnectChat()">Disconnect</button>
+      <div id="chatBox"></div>
 
-<p id="status">Status: Idle</p>
- <div id="chatBox"></div>
+      <input
+        type="text"
+        id="msgInput"
+        placeholder="Type your message..."
+        oninput="typing()"
+      />
 
-<input
-  type="text"
-  id="msgInput"
-  placeholder="Type your message..."
-  oninput="typing()"
-  onkeyup="checkEnter(event)"
-/>
-<button onclick="sendMsg()">Send</button>
+      <br>
+      <button onclick="sendMsg()">Send</button>
+
+    </div>
+  </div>
 <script>
 let socket;
- function typing() {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send("__typing__");
-  }
- }
 
 function startChat(){
   socket = new WebSocket("wss://talktosmile-server.onrender.com");
 
   document.getElementById("status").innerText = "Status: Connecting...";
 
-  socket.onopen = function(){
+  socket.onopen = () => {
     document.getElementById("status").innerText = "Status: Connected";
+    addMsg("System", "Waiting for a stranger...");
   };
 
-  socket.onmessage = function(event) {
-  let chat = document.getElementById("chatBox");
-  let status = document.getElementById("status");
+  socket.onmessage = (event) => {
+    if(event.data === "__typing__"){
+      document.getElementById("status").innerText = "Stranger is typing...";
+      return;
+    }
 
-  // typing signal
-  if (event.data === "__typing__") {
-    status.innerText = "Stranger is typing...";
-    return;
-  }
-
-  // stranger connected
-  if (event.data === "Stranger connected!") {
-    chat.innerHTML = ""; // 🔥 old chat clear
-    status.innerText = "Status: Connected";
-    chat.innerHTML += "<p><b>Stranger:</b> Stranger connected!</p>";
-    return;
-  }
-
-  // stranger disconnected
-  if (event.data === "Stranger disconnected.") {
-    status.innerText = "Status: Waiting for a stranger...";
-    chat.innerHTML += "<p><b>Stranger:</b> Stranger disconnected.</p>";
-    return;
-  }
-
-  // normal message
-  status.innerText = "Status: Connected";
-  chat.innerHTML += "<p style='color:#4fd1c5'><b>You:</b> " + msg + "</p>";
-  chat.scrollTop = chat.scrollHeight;
-};
-
-  socket.onerror = function(){
-    document.getElementById("status").innerText = "Status: Server Error";
+    document.getElementById("status").innerText = "Status: Connected";
+    addMsg("Stranger", event.data);
   };
 
-  socket.onclose = function(){
+  socket.onclose = () => {
     document.getElementById("status").innerText = "Status: Disconnected";
+    addMsg("System", "Stranger disconnected.");
+  };
+
+  socket.onerror = () => {
+    document.getElementById("status").innerText = "Status: Server Error";
   };
 }
 
+function disconnectChat(){
+  if(socket){
+    socket.close();
+  }
+}
+
 function sendMsg(){
- document.getElementById("status").innerText = "Status: Connected";
   if(!socket || socket.readyState !== 1){
     alert("Server connected nahi hai");
     return;
   }
 
-  let msg = document.getElementById("msgInput").value;
+  let input = document.getElementById("msgInput");
+  let msg = input.value.trim();
   if(msg === "") return;
 
-  let chat = document.getElementById("chatBox");
-  chat.innerHTML += "<p><b>You:</b> " + msg + "</p>";
-  chat.scrollTop = chat.scrollHeight;
-
+  addMsg("You", msg);
   socket.send(msg);
-  document.getElementById("msgInput").value = "";
+  input.value = "";
+}
+
+function typing(){
+  if(!socket || socket.readyState !== WebSocket.OPEN){
+    socket.send("__typing__");
+  }
+}
+
+function addMsg(who, text){
+  let box = document.getElementById("chatBox");
+  box.innerHTML += `<p><b>${who}:</b> ${text}</p>`;
+  box.scrollTop = box.scrollHeight;
 }
 </script>
-</div>
+  <!-- JS YAHAN AAYEGA -->
 </body>
- 
 </html>
