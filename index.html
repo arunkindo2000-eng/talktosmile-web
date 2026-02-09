@@ -8,74 +8,135 @@
   
   <style>
     body{
-      background:#020617;
-      color:white;
-      font-family:Arial;
-      margin:0;
-    }
+  background:#020617;
+  color:#e5e7eb;
+  font-family:Arial, sans-serif;
+  margin:0;
+}
 
-    .page{
-      min-height:100vh;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      padding-bottom:120px;
-    }
+.page{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px 0;
+}
 
-    .box{
-      background:#0f172a;
-      padding:20px;
-      width:90%;
-      max-width:420px;
-      text-align:center;
-      border-radius:16px;
-      box-shadow:0 0 25px #38bdf8;
-    }
+.box{
+  width:92%;
+  max-width:420px;
+  background:linear-gradient(180deg,#020617,#020617);
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 0 35px rgba(56,189,248,0.25);
+  border:1px solid rgba(56,189,248,0.25);
+}
 
-    button{
-      padding:12px 20px;
-      background:#38bdf8;
-      border:none;
-      border-radius:6px;
-      font-size:16px;
-      margin:5px;
-    }
+h1{
+  margin:0;
+  color:#38bdf8;
+  text-shadow:0 0 10px rgba(56,189,248,0.6);
+}
 
-    #status{
-      margin-top:10px;
-      color:#a5f3fc;
-    }
+.subtitle{
+  font-size:14px;
+  color:#94a3b8;
+  margin-top:4px;
+}
 
-    #chatBox{
-      margin-top:15px;
-      background:#020617;
-      padding:10px;
-      border-radius:6px;
-      height:220px;
-      overflow-y:auto;
-      text-align:left;
-      font-size:14px;
-    }
+.trust{
+  font-size:13px;
+  color:#a5f3fc;
+  margin-top:6px;
+}
 
-    #msgInput{
-      width:90%;
-      padding:8px;
-      margin-top:10px;
-      border-radius:5px;
-      border:none;
-    }
+.buttons{
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+
+button{
+  flex:1;
+  padding:12px;
+  border-radius:10px;
+  border:none;
+  font-size:15px;
+  background:#020617;
+  color:#e5e7eb;
+  box-shadow:0 0 15px rgba(56,189,248,0.35);
+}
+
+button.primary{
+  background:#38bdf8;
+  color:#020617;
+  font-weight:bold;
+}
+
+#status{
+  margin-top:10px;
+  font-size:13px;
+  color:#a5f3fc;
+}
+
+#chatBox{
+  margin-top:12px;
+  height:260px;
+  overflow-y:auto;
+  background:#020617;
+  border-radius:12px;
+  padding:10px;
+  box-shadow:inset 0 0 12px rgba(56,189,248,0.15);
+}
+
+/* chat bubbles */
+.msg{
+  max-width:75%;
+  padding:8px 10px;
+  margin:6px 0;
+  border-radius:12px;
+  font-size:14px;
+  line-height:1.4;
+}
+
+.me{
+  margin-left:auto;
+  background:#38bdf8;
+  color:#020617;
+  border-bottom-right-radius:4px;
+}
+
+.other{
+  margin-right:auto;
+  background:#111827;
+  color:#e5e7eb;
+  border:1px solid rgba(56,189,248,0.25);
+  border-bottom-left-radius:4px;
+}
+
+#msgInput{
+  width:100%;
+  margin-top:10px;
+  padding:12px;
+  border-radius:12px;
+  border:none;
+  background:#020617;
+  color:#e5e7eb;
+  box-shadow:0 0 12px rgba(56,189,248,0.25);
+}
   </style>
 </head>
 
 <body>
   <div class="page">
     <div class="box">
-
+    <div class="buttons">
+  <button class="primary" onclick="startChat()">Start</button>
+  <button onclick="nextChat()">Next</button>
+    </div>
       <h1>TalkToSmile</h1>
-      <p>Random Voice Chat With Strangers</p>
-      <p style="font-size:14px; color:#a5f3fc;">
-  100% Anonymous • No Login Required • Free Chat
-      </p>
+<p class="subtitle">Random Voice Chat With Strangers</p>
+<p class="trust">100% Anonymous • No Login Required • Free Chat</p>
 
       <button onclick="startChat()">Start Chat</button>
       <button onclick="disconnectChat()">Disconnect</button>
@@ -183,11 +244,20 @@ function typing(){
 }
 
 function addMsg(who, text){
-  let box = document.getElementById("chatBox");
-  box.innerHTML += `<p><b>${who}:</b> ${text}</p>`;
+  const box = document.getElementById("chatBox");
+  const div = document.createElement("div");
+
+  div.classList.add("msg");
+  if(who === "You"){
+    div.classList.add("me");
+  }else{
+    div.classList.add("other");
+  }
+
+  div.innerText = text;
+  box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
 </script>
-  <!-- JS YAHAN AAYEGA -->
 </body>
 </html>
