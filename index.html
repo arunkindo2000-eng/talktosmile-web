@@ -84,6 +84,7 @@
         id="msgInput"
         placeholder="Type your message..."
         oninput="typing()"
+        onkeyup="checkEnter(event)"
       />
 
       <br>
@@ -129,7 +130,11 @@ function disconnectChat(){
     socket.close();
   }
 }
-
+function checkEnter(event){
+  if(event.key === "Enter"){
+    sendMsg();
+  }
+}
 function sendMsg(){
   if(!socket || socket.readyState !== 1){
     alert("Server connected nahi hai");
