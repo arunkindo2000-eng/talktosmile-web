@@ -27,9 +27,13 @@ function startChat(){
     status:"waiting"
   });
 
+  document.getElementById("status").innerText="Status: Waiting for stranger...";
+
   onValue(waitingRef,(snapshot)=>{
 
     const users = snapshot.val();
+
+    if(!users) return;
 
     for(let id in users){
 
@@ -40,7 +44,7 @@ function startChat(){
         remove(ref(db,"waiting/"+id));
         remove(ref(db,"waiting/"+myId));
 
-        document.getElementById("status").innerText = "Connected to stranger";
+        document.getElementById("status").innerText="Status: Connected to stranger";
 
         console.log("Connected");
 
@@ -56,13 +60,7 @@ function startChat(){
 function disconnectChat(){
 
   if(myId){
-    remove(ref(db,"waiting/"+myId));
-  }
-
-  document.getElementById("status").innerText="Disconnected";
-
-}
-
+    remove(ref
 
 document.querySelector("#startBtn").onclick = startChat;
 document.querySelector("#disconnectBtn").onclick = disconnectChat;
