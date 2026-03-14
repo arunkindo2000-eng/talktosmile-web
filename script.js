@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, push, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
@@ -14,27 +14,55 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let myUser = null;
+let myId = null;
+let partnerId = null;
 
-function startChat() {
+function startChat(){
 
   const waitingRef = ref(db,"waiting");
 
-  myUser = push(waitingRef,{
+  myId = push(waitingRef).key;
+
+  set(ref(db,"waiting/"+myId),{
     status:"waiting"
   });
 
-  console.log("Waiting for stranger...");
+  onValue(waitingRef,(snapshot)=>{
+
+    const users = snapshot.val();
+
+    for(let id in users){
+
+      if(id !== myId){
+
+        partnerId = id;
+
+        remove(ref(db,"waiting/"+id));
+        remove(ref(db,"waiting/"+myId));
+
+        document.getElementById("status").innerText = "Connected to stranger";
+
+        console.log("Connected");
+
+        break;
+      }
+
+    }
+
+  });
+
 }
 
 function disconnectChat(){
 
-  if(myUser){
-    remove(myUser);
-    console.log("Disconnected");
+  if(myId){
+    remove(ref(db,"waiting/"+myId));
   }
 
+  document.getElementById("status").innerText="Disconnected";
+
 }
+
 
 document.querySelector("#startBtn").onclick = startChat;
 document.querySelector("#disconnectBtn").onclick = disconnectChat;
