@@ -262,5 +262,25 @@ function addMsg(who, text){
   box.scrollTop = box.scrollHeight;
 }
 </script>
+  <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
+  authDomain: "talktosmile-16bca.firebaseapp.com",
+  databaseURL: "https://talktosmile-16bca-default-rtdb.firebaseio.com",
+  projectId: "talktosmile-16bca",
+  storageBucket: "talktosmile-16bca.firebasestorage.app",
+  messagingSenderId: "550139117184",
+  appId: "1:550139117184:web:c354dce8e28c8e2144f065",
+  measurementId: "G-F8QYEXZRQM"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+console.log("Firebase connected");
+  </script>
 </body>
 </html>
