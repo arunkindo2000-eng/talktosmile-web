@@ -36,5 +36,5 @@ function disconnectChat(){
 
 }
 
-document.querySelector(".start").onclick = startChat;
-document.querySelector(".disconnect").onclick = disconnectChat;
+document.querySelector("#startBtn").onclick = startChat;
+document.querySelector("#disconnectBtn").onclick = disconnectChat;
