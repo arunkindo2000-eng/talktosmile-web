@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
@@ -15,52 +15,97 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 let myId = null;
-let partnerId = null;
+let roomId = null;
 
+// 🔹 START CHAT
 function startChat(){
+
+  myId = "user_" + Date.now();
 
   const waitingRef = ref(db,"waiting");
 
-  myId = push(waitingRef).key;
-
-  set(ref(db,"waiting/"+myId),{
-    status:"waiting"
+  push(waitingRef,{
+    id: myId
   });
 
-  document.getElementById("status").innerText="Status: Waiting for stranger...";
+  document.getElementById("status").innerText = "Status: Waiting...";
 
   onValue(waitingRef,(snapshot)=>{
 
     const users = snapshot.val();
-
     if(!users) return;
 
-    for(let id in users){
+    let list = Object.values(users);
 
-      if(id !== myId){
+    if(list.length >= 2){
 
-        partnerId = id;
+      let roomRef = push(ref(db,"rooms"));
+      roomId = roomRef.key;
 
-        remove(ref(db,"waiting/"+id));
-        remove(ref(db,"waiting/"+myId));
+      set(roomRef,{
+        user1: list[0].id,
+        user2: list[1].id
+      });
 
-        document.getElementById("status").innerText="Status: Connected to stranger";
+      remove(waitingRef);
 
-        console.log("Connected");
+      document.getElementById("status").innerText = "Status: Connected";
 
-        break;
-      }
-
+      listenMessages();
     }
 
   });
 
 }
 
+// 🔹 SEND MESSAGE
+function sendMessage(){
+
+  const input = document.getElementById("msgInput");
+  const msg = input.value;
+
+  if(!msg || !roomId) return;
+
+  push(ref(db,"messages/"+roomId),{
+    text: msg,
+    sender: myId
+  });
+
+  input.value = "";
+}
+
+// 🔹 LISTEN MESSAGE
+function listenMessages(){
+
+  onValue(ref(db,"messages/"+roomId),(snapshot)=>{
+
+    const box = document.getElementById("chatBox");
+    box.innerHTML = "";
+
+    const msgs = snapshot.val();
+    if(!msgs) return;
+
+    Object.values(msgs).forEach(m=>{
+      const div = document.createElement("div");
+      div.innerText = (m.sender === myId ? "You: " : "Stranger: ") + m.text;
+      box.appendChild(div);
+    });
+
+  });
+
+}
+
+// 🔹 DISCONNECT
 function disconnectChat(){
 
-  if(myId){
-    remove(ref
+  if(roomId){
+    remove(ref(db,"messages/"+roomId));
+  }
 
-document.querySelector("#startBtn").onclick = startChat;
-document.querySelector("#disconnectBtn").onclick = disconnectChat;
+  document.getElementById("status").innerText = "Status: Disconnected";
+}
+
+// 🔹 BUTTONS
+document.getElementById("startBtn").onclick = startChat;
+document.getElementById("sendBtn").onclick = sendMessage;
+document.getElementById("disconnectBtn").onclick = disconnectChat;
