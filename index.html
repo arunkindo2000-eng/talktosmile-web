@@ -1,286 +1,83 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>TalkToSmile</title>
 
-  <meta name="google-site-verification" content="_0eJ0qg54EPcu-QxoRZR35oQeGwJu_-FMEFVXszDL74" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
   <style>
     body{
-  background:#020617;
-  color:#e5e7eb;
-  font-family:Arial, sans-serif;
-  margin:0;
-}
+      background:#020617;
+      color:white;
+      text-align:center;
+      font-family:sans-serif;
+      margin:0;
+      padding:20px;
+    }
 
-.page{
-  min-height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding:20px 0;
-}
+    h1{
+      color:#38bdf8;
+    }
 
-.box{
-  width:92%;
-  max-width:420px;
-  background:linear-gradient(180deg,#020617,#020617);
-  border-radius:18px;
-  padding:18px;
-  box-shadow:0 0 35px rgba(56,189,248,0.25);
-  border:1px solid rgba(56,189,248,0.25);
-}
+    button{
+      margin:5px;
+      padding:10px 15px;
+      border-radius:10px;
+      border:none;
+      background:#0ea5e9;
+      color:white;
+      font-size:14px;
+    }
 
-h1{
-  margin:0;
-  color:#38bdf8;
-  text-shadow:0 0 10px rgba(56,189,248,0.6);
-}
+    #chatBox{
+      height:250px;
+      border:1px solid #0ea5e9;
+      margin:15px auto;
+      width:90%;
+      max-width:400px;
+      overflow-y:auto;
+      padding:10px;
+      border-radius:10px;
+      text-align:left;
+    }
 
-.subtitle{
-  font-size:14px;
-  color:#94a3b8;
-  margin-top:4px;
-}
+    input{
+      padding:10px;
+      width:80%;
+      border-radius:10px;
+      border:none;
+      outline:none;
+      margin-top:10px;
+    }
 
-.trust{
-  font-size:13px;
-  color:#a5f3fc;
-  margin-top:6px;
-}
-
-.buttons{
-  display:flex;
-  gap:8px;
-  margin-top:12px;
-}
-
-button{
-  flex:1;
-  padding:12px;
-  border-radius:10px;
-  border:none;
-  font-size:15px;
-  background:#020617;
-  color:#e5e7eb;
-  box-shadow:0 0 15px rgba(56,189,248,0.35);
-}
-
-button.primary{
-  background:#38bdf8;
-  color:#020617;
-  font-weight:bold;
-}
-
-#status{
-  margin-top:10px;
-  font-size:13px;
-  color:#a5f3fc;
-}
-
-#chatBox{
-  margin-top:12px;
-  height:260px;
-  overflow-y:auto;
-  background:#020617;
-  border-radius:12px;
-  padding:10px;
-  box-shadow:inset 0 0 12px rgba(56,189,248,0.15);
-}
-
-/* chat bubbles */
-.msg{
-  max-width:75%;
-  padding:8px 10px;
-  margin:6px 0;
-  border-radius:12px;
-  font-size:14px;
-  line-height:1.4;
-}
-
-.me{
-  margin-left:auto;
-  background:#38bdf8;
-  color:#020617;
-  border-bottom-right-radius:4px;
-}
-
-.other{
-  margin-right:auto;
-  background:#111827;
-  color:#e5e7eb;
-  border:1px solid rgba(56,189,248,0.25);
-  border-bottom-left-radius:4px;
-}
-
-#msgInput{
-  width:100%;
-  margin-top:10px;
-  padding:12px;
-  border-radius:12px;
-  border:none;
-  background:#020617;
-  color:#e5e7eb;
-  box-shadow:0 0 12px rgba(56,189,248,0.25);
-}
+    #status{
+      margin-top:10px;
+      color:#94a3b8;
+    }
   </style>
 </head>
 
 <body>
-  <div class="page">
-    <div class="box">
-    <div class="buttons">
-  <button class="primary" onclick="startChat()">Start</button>
-  <button onclick="nextChat()">Next</button>
-    </div>
-      <h1>TalkToSmile</h1>
-<p class="subtitle">Random Voice Chat With Strangers</p>
-<p class="trust">100% Anonymous • No Login Required • Free Chat</p>
 
-<input id="msgInput" placeholder="Type your message..." />
-<button onclick="sendMessage()">Send</button>
+  <h1>TalkToSmile 😎</h1>
+  <p>Random Chat With Strangers</p>
 
-<button onclick="startChat()">Start Chat</button>
-<button onclick="disconnectChat()">Disconnect</button>
-<button onclick="nextChat()">Next</button>
+  <!-- STATUS -->
+  <p id="status">Status: Idle</p>
 
-<p id="status">Status: Idle</p>
+  <!-- BUTTONS -->
+  <button id="startBtn">Start Chat</button>
+  <button id="disconnectBtn">Disconnect</button>
 
-      <div id="chatBox"></div>
+  <!-- CHAT BOX -->
+  <div id="chatBox"></div>
 
-      <input
-        type="text"
-        id="msgInput"
-        placeholder="Type your message..."
-        oninput="typing()"
-        onkeyup="checkEnter(event)"
-      />
-
-      <br>
-      <button onclick="sendMsg()">Send</button>
-
-    </div>
-  </div>
-  <footer style="margin-top:20px; font-size:13px; color:#94a3b8;">
-  © 2026 TalkToSmile • Anonymous Chat Platform
-  <a href="privacy.html" style="color:#38bdf8;">Privacy Policy</a> | 
-<a href="terms.html" style="color:#38bdf8;">Terms</a>
+  <!-- INPUT -->
+  <input id="msgInput" placeholder="Type message...">
   <br>
-  <a href="privacy.html" style="color:#38bdf8;">Privacy Policy</a> |
-  <a href="terms.html" style="color:#38bdf8;">Terms</a>
-  </footer>
-<script>
-let socket;
+  <button id="sendBtn">Send</button>
 
-function startChat(){
-  socket = new WebSocket("wss://echo.websocket.events");
+  <!-- IMPORTANT: JS FILE LINK -->
+  <script type="module" src="script.js"></script>
 
-  document.getElementById("status").innerText = "Status: Connecting...";
-
-  socket.onopen = () => {
-    document.getElementById("status").innerText = "Status: Connected";
-    addMsg("System", "Waiting for a stranger...");
-  };
-
-  socket.onmessage = (event) => {
-    if(event.data === "__typing__"){
-      document.getElementById("status").innerText = "Stranger is typing...";
-      return;
-    }
-
-    document.getElementById("status").innerText = "Status: Connected";
-    addMsg("Stranger", event.data);
-  };
-
-  socket.onclose = () => {
-    document.getElementById("status").innerText = "Status: Disconnected";
-    addMsg("System", "Stranger disconnected.");
-  };
-
-  socket.onerror = () => {
-    document.getElementById("status").innerText = "Status: Server Error";
-  };
-}
-function nextChat(){
-  if(socket){
-    socket.close(); // current stranger disconnect
-  }
-
-  document.getElementById("chatBox").innerHTML = "";
-  document.getElementById("status").innerText = "Status: Finding new stranger...";
-
-  setTimeout(() => {
-    startChat(); // new stranger
-  }, 500);
-}
-
-function disconnectChat(){
-  if(socket){
-    socket.close();
-  }
-}
-function checkEnter(event){
-  if(event.key === "Enter"){
-    sendMsg();
-  }
-}
-function sendMsg(){
-  if(!socket || socket.readyState !== 1){
-    alert("Server connected nahi hai");
-    return;
-  }
-
-  let input = document.getElementById("msgInput");
-  let msg = input.value.trim();
-  if(msg === "") return;
-
-  addMsg("You", msg);
-  socket.send(msg);
-  input.value = "";
-}
-
-function typing(){
-  if(!socket || socket.readyState !== WebSocket.OPEN){
-    socket.send("__typing__");
-  }
-}
-
-function addMsg(who, text){
-  const box = document.getElementById("chatBox");
-  const div = document.createElement("div");
-
-  div.classList.add("msg");
-  if(who === "You"){
-    div.classList.add("me");
-  }else{
-    div.classList.add("other");
-  }
-
-  div.innerText = text;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}
-</script>
-  <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
-  authDomain: "talktosmile-16bca.firebaseapp.com",
-  databaseURL: "https://talktosmile-16bca-default-rtdb.firebaseio.com",
-  projectId: "talktosmile-16bca",
-  storageBucket: "talktosmile-16bca.firebasestorage.app",
-  messagingSenderId: "550139117184",
-  appId: "1:550139117184:web:c354dce8e28c8e2144f065",
-  measurementId: "G-F8QYEXZRQM"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-console.log("Firebase connected");
-  </script>
 </body>
 </html>
