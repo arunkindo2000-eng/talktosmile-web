@@ -17,43 +17,55 @@ const db = getDatabase(app);
 let myId = null;
 let roomId = null;
 
-// 🔹 START CHAT
 function startChat(){
 
   myId = "user_" + Date.now();
 
-  const waitingRef = ref(db,"waiting");
-
-  push(waitingRef,{
-    id: myId
-  });
+  const waitingRef = ref(db, "waiting");
 
   document.getElementById("status").innerText = "Status: Waiting...";
 
-  onValue(waitingRef,(snapshot)=>{
+  onValue(waitingRef, (snapshot)=>{
 
     const users = snapshot.val();
-    if(!users) return;
 
-    let list = Object.values(users);
+    if(users){
 
-    if(list.length >= 2){
+      const ids = Object.keys(users);
 
-      let roomRef = push(ref(db,"rooms"));
-      roomId = roomRef.key;
+      // agar koi already waiting hai
+      for(let id of ids){
 
-      set(roomRef,{
-        user1: list[0].id,
-        user2: list[1].id
-      });
+        if(id !== myId){
 
-      
-remove(ref(db, "waiting/" + list[0].id));
-remove(ref(db, "waiting/" + list[1].id));
+          // ROOM CREATE
+          roomId = "room_" + Date.now();
 
-      document.getElementById("status").innerText = "Status: Connected";
+          set(ref(db, "rooms/" + roomId), {
+            user1: myId,
+            user2: id
+          });
 
-      listenMessages();
+          // dono ko waiting se hatao
+          remove(ref(db, "waiting/" + id));
+          remove(ref(db, "waiting/" + myId));
+
+          document.getElementById("status").innerText = "Status: Connected";
+
+          listenMessages();
+          return;
+        }
+      }
+    }
+
+    // agar koi nahi mila → waiting me add ho jao
+    set(ref(db, "waiting/" + myId), {
+      id: myId
+    });
+
+  }, { onlyOnce: true });
+
+}
     }
 
   });
