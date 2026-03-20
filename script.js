@@ -47,7 +47,9 @@ function startChat(){
         user2: list[1].id
       });
 
-      remove(waitingRef);
+      
+remove(ref(db, "waiting/" + list[0].id));
+remove(ref(db, "waiting/" + list[1].id));
 
       document.getElementById("status").innerText = "Status: Connected";
 
