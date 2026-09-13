@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://arunkindo2000-eng.github.io/talktosmile-web/sitemap.xml
