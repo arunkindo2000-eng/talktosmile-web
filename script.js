@@ -183,5 +183,4 @@ function disconnectChat() {
 // BUTTON EVENTS
 document.getElementById("startBtn").onclick = startChat;
 document.getElementById("sendBtn").onclick = sendMessage;
-document.getElementById("disconnectBtn").onclick = disconnectChat;.onclick = sendMessage;
 document.getElementById("disconnectBtn").onclick = disconnectChat;
