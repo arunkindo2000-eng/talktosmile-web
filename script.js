@@ -262,7 +262,24 @@ function disconnectChat() {
 
 }
 
+// LISTEN FOR STRANGER DISCONNECT
+function listenRoomStatus() {
+  const roomRef = ref(db, "rooms/" + roomId);
 
+  onValue(roomRef, (snapshot) => {
+    if (!snapshot.exists() && roomId) {
+      roomId = null;
+      listening = false;
+
+      document.getElementById("status").innerText =
+        "Status: Stranger disconnected";
+
+      document.getElementById("chatBox").innerHTML = "";
+
+      endVoice();
+    }
+  });
+}
 // BUTTON EVENTS
 document.getElementById("startBtn").onclick =
   startChat;
