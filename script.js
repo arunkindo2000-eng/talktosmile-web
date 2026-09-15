@@ -84,7 +84,9 @@ async function startChat() {
     if (!data || !data.roomId || roomId) return;
 
     roomId = data.roomId;
-
+    await set(ref(db, "rooms/" + roomId), {
+  status: "connected"
+});
     document.getElementById("status").innerText =
       "Status: Connected with " +
       (data.partnerUsername || "Stranger");
