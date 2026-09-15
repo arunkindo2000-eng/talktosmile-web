@@ -335,3 +335,10 @@ function endVoice() {
 document.getElementById("startVoiceBtn").onclick = startVoice;
 document.getElementById("muteBtn").onclick = muteVoice;
 document.getElementById("endVoiceBtn").onclick = endVoice;
+// ENTER TO SEND MESSAGE
+document.getElementById("msgInput").addEventListener("keydown", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    sendMessage();
+  }
+});
