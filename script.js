@@ -295,8 +295,10 @@ document.getElementById("sendBtn").onclick =
 document.getElementById("disconnectBtn").onclick =
   disconnectChat;
 // VOICE CHAT
+// VOICE CHAT
 let localStream = null;
 let peerConnection = null;
+let voiceListenersStarted = false;
 
 const rtcConfig = {
   iceServers: [
@@ -310,7 +312,11 @@ async function startVoice() {
     return;
   }
 
+  if (peerConnection) return;
+
   try {
+    const currentRoomId = roomId;
+
     localStream = await navigator.mediaDevices.getUserMedia({
       audio: true
     });
@@ -321,13 +327,153 @@ async function startVoice() {
       peerConnection.addTrack(track, localStream);
     });
 
+    peerConnection.ontrack = (event) => {
+      const remoteAudio = document.getElementById("remoteAudio");
+      remoteAudio.srcObject = event.streams[0];
+      remoteAudio.play().catch(() => {});
+    };
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        push(
+          ref(db, "voice/" + currentRoomId + "/candidates/" + myId),
+          event.candidate.toJSON()
+        );
+      }
+    };
+
     document.getElementById("status").innerText =
       "Voice starting...";
-      
+
+    const callerRef = ref(
+      db,
+      "voice/" + currentRoomId + "/caller"
+    );
+
+    const result = await runTransaction(callerRef, (current) => {
+      return current || myId;
+    });
+
+    const callerId = result.snapshot.val();
+
+    if (callerId === myId) {
+      const offer = await peerConnection.createOffer();
+
+      await peerConnection.setLocalDescription(offer);
+
+      await set(
+        ref(db, "voice/" + currentRoomId + "/offer"),
+        {
+          type: offer.type,
+          sdp: offer.sdp
+        }
+      );
+
+      listenForVoiceAnswer(currentRoomId);
+    } else {
+      listenForVoiceOffer(currentRoomId);
+    }
+
+    listenForVoiceCandidates(currentRoomId);
+
   } catch (error) {
     alert("Microphone permission allow karo.");
     console.error(error);
   }
+}
+
+function listenForVoiceOffer(currentRoomId) {
+  const offerRef = ref(
+    db,
+    "voice/" + currentRoomId + "/offer"
+  );
+
+  onValue(offerRef, async (snapshot) => {
+    const offer = snapshot.val();
+
+    if (!offer || !peerConnection) return;
+
+    if (peerConnection.remoteDescription) return;
+
+    await peerConnection.setRemoteDescription(
+      new RTCSessionDescription(offer)
+    );
+
+    const answer = await peerConnection.createAnswer();
+
+    await peerConnection.setLocalDescription(answer);
+
+    await set(
+      ref(db, "voice/" + currentRoomId + "/answer"),
+      {
+        type: answer.type,
+        sdp: answer.sdp
+      }
+    );
+
+    document.getElementById("status").innerText =
+      "Voice connected 🎙️";
+  });
+}
+
+function listenForVoiceAnswer(currentRoomId) {
+  const answerRef = ref(
+    db,
+    "voice/" + currentRoomId + "/answer"
+  );
+
+  onValue(answerRef, async (snapshot) => {
+    const answer = snapshot.val();
+
+    if (!answer || !peerConnection) return;
+
+    if (peerConnection.remoteDescription) return;
+
+    await peerConnection.setRemoteDescription(
+      new RTCSessionDescription(answer)
+    );
+
+    document.getElementById("status").innerText =
+      "Voice connected 🎙️";
+  });
+}
+
+function listenForVoiceCandidates(currentRoomId) {
+  const candidatesRef = ref(
+    db,
+    "voice/" + currentRoomId + "/candidates"
+  );
+
+  const addedCandidates = new Set();
+
+  onValue(candidatesRef, async (snapshot) => {
+    const allCandidates = snapshot.val();
+
+    if (!allCandidates || !peerConnection) return;
+
+    Object.keys(allCandidates).forEach(userId => {
+
+      if (userId === myId) return;
+
+      const candidates = allCandidates[userId];
+
+      Object.keys(candidates).forEach(async candidateId => {
+
+        if (addedCandidates.has(candidateId)) return;
+
+        addedCandidates.add(candidateId);
+
+        try {
+          await peerConnection.addIceCandidate(
+            new RTCIceCandidate(candidates[candidateId])
+          );
+        } catch (error) {
+          console.error(error);
+        }
+
+      });
+    });
+  });
 }
 
 function muteVoice() {
@@ -349,8 +495,11 @@ function endVoice() {
     peerConnection = null;
   }
 
-  document.getElementById("status").innerText =
-    "Status: Connected with " + (myUsername || "Stranger");
+  const remoteAudio = document.getElementById("remoteAudio");
+
+  if (remoteAudio) {
+    remoteAudio.srcObject = null;
+  }
 }
 
 // VOICE BUTTONS
