@@ -257,7 +257,7 @@ function disconnectChat() {
 
 
   document.getElementById("status").innerText =
-    "Status: Disconnected";
+    "Status: Stranger disconnected";
 
 
   document.getElementById("chatBox").innerHTML =
