@@ -243,9 +243,10 @@ function disconnectChat() {
       ref(db, "messages/" + roomId)
     );
 
-    remove(
-      ref(db, "rooms/" + roomId)
-    );
+    set(
+  ref(db, "rooms/" + roomId + "/status"),
+  "disconnected"
+);
 
   }
 
