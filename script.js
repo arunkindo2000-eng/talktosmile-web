@@ -271,7 +271,9 @@ function listenRoomStatus() {
   const roomRef = ref(db, "rooms/" + roomId);
 
   onValue(roomRef, (snapshot) => {
-    if (!snapshot.exists() && roomId) {
+    const room = snapshot.val();
+
+if (room && room.status === "disconnected" && roomId) {
       roomId = null;
       listening = false;
 
