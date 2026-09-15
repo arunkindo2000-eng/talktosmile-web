@@ -1,4 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
 import {
   getDatabase,
   ref,
@@ -6,8 +7,10 @@ import {
   onValue,
   push,
   remove,
-  off
+  runTransaction,
+  onDisconnect
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
@@ -19,15 +22,19 @@ const firebaseConfig = {
   appId: "1:550139117184:web:c354dce8e28c8e2144f065"
 };
 
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+
 
 let myId = null;
 let myUsername = null;
 let roomId = null;
 let listening = false;
 
-function startChat() {
+
+// START CHAT
+async function startChat() {
 
   if (listening) return;
 
@@ -41,57 +48,36 @@ function startChat() {
   }
 
   myUsername = username.substring(0, 20);
-  myId = "user_" + Date.now();
 
-  document.getElementById("status").innerText = "Status: Waiting...";
-
-  const waitingRef = ref(db, "waiting");
-
-  set(ref(db, "waiting/" + myId), {
-    id: myId,
-    username: myUsername,
-    roomId: null
-  });
+  myId = "user_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
 
   listening = true;
 
-  onValue(waitingRef, (snapshot) => {
+  document.getElementById("status").innerText = "Status: Waiting...";
 
-    if (!listening || roomId) return;
 
-    const users = snapshot.val();
+  const myWaitingRef = ref(db, "waiting/" + myId);
 
-    if (!users) return;
 
-    const availableUsers = Object.values(users)
-      .filter(user => user.id !== myId && !user.roomId);
-
-    if (availableUsers.length === 0) return;
-
-    availableUsers.sort((a, b) => a.id.localeCompare(b.id));
-
-    const otherUser = availableUsers[0];
-
-    const allIds = [myId, otherUser.id].sort();
-
-    // Sirf chhoti ID wala user room create karega
-    if (myId !== allIds[0]) return;
-
-    const newRoomId = "room_" + Date.now();
-
-    set(ref(db, "rooms/" + newRoomId), {
-      user1: myId,
-      username1: myUsername,
-      user2: otherUser.id,
-      username2: otherUser.username
-    });
-
-    set(ref(db, "waiting/" + myId + "/roomId"), newRoomId);
-    set(ref(db, "waiting/" + otherUser.id + "/roomId"), newRoomId);
+  // Add myself to waiting list
+  await set(myWaitingRef, {
+    id: myId,
+    username: myUsername,
+    roomId: null,
+    partnerUsername: null
   });
 
-  // Apne waiting node ko listen karo
-  onValue(ref(db, "waiting/" + myId), (snapshot) => {
+
+  // Remove me automatically if connection closes
+  onDisconnect(myWaitingRef).remove();
+
+
+  // Try to find another waiting user
+  await findMatch();
+
+
+  // Listen to my own waiting entry
+  onValue(myWaitingRef, (snapshot) => {
 
     const data = snapshot.val();
 
@@ -100,13 +86,69 @@ function startChat() {
     roomId = data.roomId;
 
     document.getElementById("status").innerText =
-      "Status: Connected with " + (data.partnerUsername || "Stranger");
+      "Status: Connected with " +
+      (data.partnerUsername || "Stranger");
 
-    off(waitingRef);
 
     listenMessages();
 
-    remove(ref(db, "waiting/" + myId));
+    // Remove from waiting after connection
+    remove(myWaitingRef);
+  });
+}
+
+
+// FIND RANDOM MATCH
+async function findMatch() {
+
+  const waitingRef = ref(db, "waiting");
+
+  await runTransaction(waitingRef, (currentData) => {
+
+    if (!currentData) {
+      return currentData;
+    }
+
+
+    const users = Object.values(currentData);
+
+    const otherUsers = users.filter((user) => {
+
+      return (
+        user.id !== myId &&
+        !user.roomId
+      );
+
+    });
+
+
+    if (otherUsers.length === 0) {
+      return currentData;
+    }
+
+
+    // Random stranger
+    const otherUser =
+      otherUsers[Math.floor(Math.random() * otherUsers.length)];
+
+
+    const newRoomId =
+      "room_" +
+      Date.now() +
+      "_" +
+      Math.random().toString(36).substring(2, 7);
+
+
+    // Match both users
+    currentData[myId].roomId = newRoomId;
+    currentData[myId].partnerUsername = otherUser.username;
+
+    currentData[otherUser.id].roomId = newRoomId;
+    currentData[otherUser.id].partnerUsername = myUsername;
+
+
+    return currentData;
+
   });
 }
 
@@ -114,16 +156,24 @@ function startChat() {
 // SEND MESSAGE
 function sendMessage() {
 
-  const msgInput = document.getElementById("msgInput");
-  const msg = msgInput.value.trim();
+  const msgInput =
+    document.getElementById("msgInput");
+
+  const msg =
+    msgInput.value.trim();
+
 
   if (!msg || !roomId || !myId) return;
 
+
   push(ref(db, "messages/" + roomId), {
+
     text: msg,
     sender: myId,
     username: myUsername
+
   });
+
 
   msgInput.value = "";
 }
@@ -132,27 +182,47 @@ function sendMessage() {
 // LISTEN MESSAGES
 function listenMessages() {
 
-  onValue(ref(db, "messages/" + roomId), (snapshot) => {
+  onValue(
+    ref(db, "messages/" + roomId),
+    (snapshot) => {
 
-    const box = document.getElementById("chatBox");
-    box.innerHTML = "";
+      const box =
+        document.getElementById("chatBox");
 
-    const msgs = snapshot.val();
+      box.innerHTML = "";
 
-    if (!msgs) return;
 
-    Object.values(msgs).forEach((m) => {
+      const msgs =
+        snapshot.val();
 
-      const div = document.createElement("div");
 
-      div.innerText =
-        (m.sender === myId ? "You" : m.username) + ": " + m.text;
+      if (!msgs) return;
 
-      box.appendChild(div);
-    });
 
-    box.scrollTop = box.scrollHeight;
-  });
+      Object.values(msgs).forEach((m) => {
+
+        const div =
+          document.createElement("div");
+
+
+        div.innerText =
+          (m.sender === myId
+            ? "You"
+            : m.username) +
+          ": " +
+          m.text;
+
+
+        box.appendChild(div);
+
+      });
+
+
+      box.scrollTop =
+        box.scrollHeight;
+
+    }
+  );
 }
 
 
@@ -163,24 +233,42 @@ function disconnectChat() {
     remove(ref(db, "waiting/" + myId));
   }
 
+
   if (roomId) {
-    remove(ref(db, "messages/" + roomId));
-    remove(ref(db, "rooms/" + roomId));
+
+    remove(
+      ref(db, "messages/" + roomId)
+    );
+
+    remove(
+      ref(db, "rooms/" + roomId)
+    );
+
   }
+
 
   myId = null;
   myUsername = null;
   roomId = null;
   listening = false;
 
+
   document.getElementById("status").innerText =
     "Status: Disconnected";
 
-  document.getElementById("chatBox").innerHTML = "";
+
+  document.getElementById("chatBox").innerHTML =
+    "";
+
 }
 
 
 // BUTTON EVENTS
-document.getElementById("startBtn").onclick = startChat;
-document.getElementById("sendBtn").onclick = sendMessage;
-document.getElementById("disconnectBtn").onclick = disconnectChat;
+document.getElementById("startBtn").onclick =
+  startChat;
+
+document.getElementById("sendBtn").onclick =
+  sendMessage;
+
+document.getElementById("disconnectBtn").onclick =
+  disconnectChat;
