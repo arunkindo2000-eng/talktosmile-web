@@ -272,3 +272,66 @@ document.getElementById("sendBtn").onclick =
 
 document.getElementById("disconnectBtn").onclick =
   disconnectChat;
+// VOICE CHAT
+let localStream = null;
+let peerConnection = null;
+
+const rtcConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" }
+  ]
+};
+
+async function startVoice() {
+  if (!roomId) {
+    alert("Pehle kisi stranger se connect ho!");
+    return;
+  }
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    });
+
+    peerConnection = new RTCPeerConnection(rtcConfig);
+
+    localStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, localStream);
+    });
+
+    document.getElementById("status").innerText =
+      "Voice starting...";
+      
+  } catch (error) {
+    alert("Microphone permission allow karo.");
+    console.error(error);
+  }
+}
+
+function muteVoice() {
+  if (!localStream) return;
+
+  localStream.getAudioTracks().forEach(track => {
+    track.enabled = !track.enabled;
+  });
+}
+
+function endVoice() {
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+
+  document.getElementById("status").innerText =
+    "Status: Connected with " + (myUsername || "Stranger");
+}
+
+// VOICE BUTTONS
+document.getElementById("startVoiceBtn").onclick = startVoice;
+document.getElementById("muteBtn").onclick = muteVoice;
+document.getElementById("endVoiceBtn").onclick = endVoice;
