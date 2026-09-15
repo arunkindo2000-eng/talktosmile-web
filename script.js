@@ -91,6 +91,7 @@ async function startChat() {
 
 
     listenMessages();
+    listenRoomStatus();
 
     // Remove from waiting after connection
     remove(myWaitingRef);
