@@ -276,13 +276,12 @@ function listenRoomStatus() {
 if (room && room.status === "disconnected" && roomId) {
       roomId = null;
       listening = false;
+  endVoice();
 
       document.getElementById("status").innerText =
         "Status: Stranger disconnected";
 
       document.getElementById("chatBox").innerHTML = "";
-
-      endVoice();
     }
   });
 }
