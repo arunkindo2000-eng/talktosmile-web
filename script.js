@@ -332,7 +332,7 @@ function endVoice() {
 }
 
 // VOICE BUTTONS
-document.getElementById("startVoiceBtn").onclick = startVoice;
+document.getElementById("voiceBtn").onclick = startVoice;
 document.getElementById("muteBtn").onclick = muteVoice;
 document.getElementById("endVoiceBtn").onclick = endVoice;
 // ENTER TO SEND MESSAGE
