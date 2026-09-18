@@ -41,11 +41,7 @@ async function startChat() {
   const usernameInput = document.getElementById("usernameInput");
   const username = usernameInput.value.trim();
 
-  if (!username) {
-    alert("Please enter your username");
-    usernameInput.focus();
-    return;
-  }
+myUsername = (username || "Stranger" + Math.floor(Math.random() * 10000)).substring(0, 20);
 
   myUsername = username.substring(0, 20);
 
@@ -512,4 +508,10 @@ document.getElementById("msgInput").addEventListener("keydown", function(event) 
     event.preventDefault();
     sendMessage();
   }
+});
+// AUTO CONNECT
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    startChat();
+  }, 1000);
 });
