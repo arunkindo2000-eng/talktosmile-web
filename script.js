@@ -511,7 +511,14 @@ document.getElementById("msgInput").addEventListener("keydown", function(event) 
 });
 // AUTO CONNECT
 window.addEventListener("load", () => {
-  setTimeout(() => {
-    startChat();
-  }, 1000);
+  const usernameInput = document.getElementById("usernameInput");
+
+  if (usernameInput) {
+    usernameInput.value =
+      "Stranger" + Math.floor(Math.random() * 10000);
+
+    setTimeout(() => {
+      startChat();
+    }, 1000);
+  }
 });
