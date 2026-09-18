@@ -1,14 +1,199 @@
-body{
-  background:#0f172a;
-  color:white;
-  text-align:center;
-  font-family:Arial;
+* {
+  box-sizing: border-box;
 }
 
-button{
-  background:#22c55e;
-  border:none;
-  padding:12px 20px;
-  font-size:18px;
-  border-radius:8px;
+html {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  padding: 20px 15px;
+  background: #01072a;
+  color: white;
+  text-align: center;
+  font-family: Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Headings */
+h1 {
+  font-size: 48px;
+  margin: 10px 0 35px;
+}
+
+h2 {
+  font-size: 36px;
+  margin: 35px 0 20px;
+}
+
+p {
+  font-size: 24px;
+  line-height: 1.4;
+  max-width: 900px;
+  margin: 15px auto;
+}
+
+/* Inputs */
+input {
+  display: block;
+  width: 85%;
+  max-width: 540px;
+  margin: 15px auto;
+  padding: 15px;
+  border: none;
+  border-radius: 15px;
+  font-size: 20px;
+  outline: none;
+}
+
+/* Buttons */
+button {
+  background: #22c5ee;
+  color: white;
+  border: none;
+  padding: 13px 22px;
+  margin: 8px 5px;
+  font-size: 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Status */
+#status {
+  color: #9ca8c5;
+  font-size: 22px;
+  margin: 15px 0;
+}
+
+/* Chat area */
+#messages {
+  width: 92%;
+  max-width: 600px;
+  height: 430px;
+  margin: 25px auto;
+  padding: 18px;
+  border: 1px solid #22c5ee;
+  border-radius: 15px;
+  text-align: left;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+}
+
+/* Message input */
+#msgInput {
+  width: 85%;
+  max-width: 540px;
+}
+
+#sendBtn {
+  margin: 5px auto 25px;
+}
+
+/* Voice buttons */
+#voiceBtn,
+#muteBtn,
+#endVoiceBtn {
+  min-width: 120px;
+}
+
+/* Footer */
+footer {
+  margin-top: 20px;
+  padding: 15px;
+}
+
+/* =========================
+   MOBILE
+   ========================= */
+
+@media (max-width: 600px) {
+
+  body {
+    padding: 12px 8px;
+  }
+
+  h1 {
+    font-size: 40px;
+    margin-bottom: 25px;
+  }
+
+  h2 {
+    font-size: 30px;
+    margin-top: 30px;
+  }
+
+  p {
+    font-size: 19px;
+    line-height: 1.4;
+  }
+
+  input {
+    width: 90%;
+    font-size: 18px;
+    padding: 14px;
+  }
+
+  button {
+    font-size: 17px;
+    padding: 12px 17px;
+    margin: 6px 2px;
+  }
+
+  #status {
+    font-size: 20px;
+  }
+
+  #messages {
+    width: 94%;
+    height: 400px;
+    margin: 20px auto;
+    padding: 15px;
+  }
+
+  #msgInput {
+    width: 90%;
+  }
+
+  #voiceBtn,
+  #muteBtn,
+  #endVoiceBtn {
+    min-width: 0;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+
+  h1 {
+    font-size: 34px;
+  }
+
+  h2 {
+    font-size: 27px;
+  }
+
+  p {
+    font-size: 18px;
+  }
+
+  button {
+    font-size: 16px;
+    padding: 11px 14px;
+  }
+
+  #messages {
+    height: 350px;
+  }
 }
