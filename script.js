@@ -522,3 +522,43 @@ window.addEventListener("load", () => {
     }, 1000);
   }
 });
+// ===============================
+// LIVE USERS ONLINE COUNTER
+// ===============================
+
+function startOnlineCounter() {
+
+  if (!myId) return;
+
+  const myOnlineRef = ref(db, "onlineUsers/" + myId);
+  const connectedRef = ref(db, ".info/connected");
+
+  onValue(connectedRef, (snapshot) => {
+
+    if (snapshot.val() === true) {
+
+      set(myOnlineRef, {
+        username: myUsername || "Stranger",
+        online: true,
+        lastSeen: Date.now()
+      });
+
+      onDisconnect(myOnlineRef).remove();
+    }
+
+  });
+
+  onValue(ref(db, "onlineUsers"), (snapshot) => {
+
+    const users = snapshot.val();
+
+    const count = users ? Object.keys(users).length : 0;
+
+    const counter = document.getElementById("onlineCount");
+
+    if (counter) {
+      counter.innerText = count;
+    }
+
+  });
+}
