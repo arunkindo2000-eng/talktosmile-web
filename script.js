@@ -46,6 +46,8 @@ myUsername = (username || "Stranger" + Math.floor(Math.random() * 10000)).substr
   myUsername = username.substring(0, 20);
 
   myId = "user_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+  
+  startOnlineCounter();
 
   listening = true;
 
