@@ -525,10 +525,7 @@ window.addEventListener("load", () => {
   }
 });
 // ===============================
-// LIVE USERS ONLINE COUNTER
-// ===============================
-
-function startOnlineCounter() {
+ {
 
   if (!myId) return;
 
@@ -564,3 +561,5 @@ function startOnlineCounter() {
 
   });
 }
+// START LIVE ONLINE COUNTER
+startOnlineCounter();
