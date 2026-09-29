@@ -1,4 +1,17 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+// ======================================================
+// TALK TO SMILE
+// COMPLETE SCRIPT.JS
+// Custom Username + Random Chat + Voice Chat
+// ======================================================
+
+
+// ======================================================
+// FIREBASE IMPORTS
+// ======================================================
+
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
 import {
   getDatabase,
@@ -12,40 +25,91 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 
-// =====================================================
-// FIREBASE
-// =====================================================
+// ======================================================
+// FIREBASE CONFIG
+// ======================================================
 
 const firebaseConfig = {
-  apiKey: "PASTE_YOUR_ORIGINAL_FIREBASE_API_KEY_HERE",
-  authDomain: "talktosmile-16bca.firebaseapp.com",
-  databaseURL: "https://talktosmile-16bca-default-rtdb.firebaseio.com",
-  projectId: "talktosmile-16bca",
-  storageBucket: "talktosmile-16bca.appspot.com",
-  messagingSenderId: "550139117184",
-  appId: "1:550139117184:web:c354dce8e28c8e2144f065"
+
+  apiKey:
+    "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
+
+  authDomain:
+    "talktosmile-16bca.firebaseapp.com",
+
+  databaseURL:
+    "https://talktosmile-16bca-default-rtdb.firebaseio.com",
+
+  projectId:
+    "talktosmile-16bca",
+
+  storageBucket:
+    "talktosmile-16bca.appspot.com",
+
+  messagingSenderId:
+    "550139117184",
+
+  appId:
+    "1:550139117184:web:c354dce8e28c8e2144f065"
+
 };
 
+
+// ======================================================
+// FIREBASE INITIALIZE
+// ======================================================
+
 const app = initializeApp(firebaseConfig);
+
 const db = getDatabase(app);
 
 
-// =====================================================
-// VARIABLES
-// =====================================================
+// ======================================================
+// GLOBAL VARIABLES
+// ======================================================
 
 let myId = null;
+
 let myUsername = null;
+
 let roomId = null;
+
 let listening = false;
 
+
+// ======================================================
+// VOICE VARIABLES
+// ======================================================
+
 let localStream = null;
+
 let peerConnection = null;
 
+let voiceRoomId = null;
 
-// =====================================================
-// ELEMENTS
-// =====================================================
+let voiceStarted = false;
+
+let isMuted = false;
+
+let pendingIceCandidates = [];
+
+
+// ======================================================
+// LISTENER REFERENCES
+// ======================================================
+
+let roomStatusListener = null;
+
+let messageListener = null;
+
+let waitingListener = null;
+
+let onlineUsersListener = null;
+
+
+// ======================================================
+// HTML ELEMENTS
+// ======================================================
 
 const usernameInput =
   document.getElementById("usernameInput");
@@ -65,196 +129,434 @@ const msgInput =
 const remoteAudio =
   document.getElementById("remoteAudio");
 
+const startBtn =
+  document.getElementById("startBtn");
 
-// =====================================================
+const disconnectBtn =
+  document.getElementById("disconnectBtn");
+
+const sendBtn =
+  document.getElementById("sendBtn");
+
+const voiceBtn =
+  document.getElementById("voiceBtn");
+
+const muteBtn =
+  document.getElementById("muteBtn");
+
+const endVoiceBtn =
+  document.getElementById("endVoiceBtn");
+
+
+// ======================================================
 // STATUS
-// =====================================================
+// ======================================================
 
 function setStatus(text) {
+
   if (statusElement) {
+
     statusElement.innerText = text;
+
   }
+
 }
 
 
-// =====================================================
-// USER ID
-// =====================================================
+// ======================================================
+// GENERATE USER ID
+// ======================================================
 
 function generateUserId() {
+
   return (
     "user_" +
     Date.now() +
     "_" +
     Math.random()
       .toString(36)
-      .substring(2, 8)
+      .substring(2, 9)
   );
+
 }
 
 
-// =====================================================
-// ONLINE COUNTER
-// =====================================================
+// ======================================================
+// GENERATE DEFAULT USERNAME
+// ======================================================
 
-function startOnlineCounter() {
+function generateDefaultUsername() {
 
-  if (!myId) return;
-
-  const myOnlineRef =
-    ref(db, "onlineUsers/" + myId);
-
-  const connectedRef =
-    ref(db, ".info/connected");
-
-  onValue(connectedRef, (snapshot) => {
-
-    if (snapshot.val() === true) {
-
-      set(myOnlineRef, {
-        username: myUsername || "Stranger",
-        online: true,
-        lastSeen: Date.now()
-      });
-
-      onDisconnect(myOnlineRef).remove();
-    }
-
-  });
-
-  onValue(
-    ref(db, "onlineUsers"),
-    (snapshot) => {
-
-      const users = snapshot.val();
-
-      const count = users
-        ? Object.keys(users).length
-        : 0;
-
-      if (onlineCount) {
-        onlineCount.innerText = count;
-      }
-
-    }
+  return (
+    "Stranger" +
+    Math.floor(
+      Math.random() * 10000
+    )
   );
+
 }
 
 
-// =====================================================
-// START CHAT
-// =====================================================
+// ======================================================
+// GET USERNAME
+// ======================================================
 
-async function startChat() {
-
-  if (listening) return;
+function getUsername() {
 
   let username = "";
 
   if (usernameInput) {
+
     username =
       usernameInput.value.trim();
+
   }
+
 
   if (!username) {
 
     username =
-      "Stranger" +
-      Math.floor(
-        Math.random() * 10000
-      );
+      generateDefaultUsername();
 
   }
 
-  myUsername =
+
+  // Maximum 20 characters
+
+  username =
     username.substring(0, 20);
 
+
   if (usernameInput) {
+
     usernameInput.value =
-      myUsername;
+      username;
+
   }
 
-  myId =
-    generateUserId();
 
-  roomId = null;
+  return username;
 
-  listening = true;
+}
 
-  setStatus(
-    "Status: Waiting..."
+
+// ======================================================
+// ONLINE USER COUNTER
+// ======================================================
+
+function startOnlineCounter() {
+
+  if (!myId) {
+
+    return;
+
+  }
+
+
+  const myOnlineRef =
+    ref(
+      db,
+      "onlineUsers/" + myId
+    );
+
+
+  const connectedRef =
+    ref(
+      db,
+      ".info/connected"
+    );
+
+
+  onValue(
+    connectedRef,
+    async (snapshot) => {
+
+      if (
+        snapshot.val() !== true
+      ) {
+
+        return;
+
+      }
+
+
+      try {
+
+        await set(
+          myOnlineRef,
+          {
+
+            id:
+              myId,
+
+            username:
+              myUsername ||
+              "Stranger",
+
+            online:
+              true,
+
+            lastSeen:
+              Date.now()
+
+          }
+        );
+
+
+        onDisconnect(
+          myOnlineRef
+        ).remove();
+
+      } catch (error) {
+
+        console.error(
+          "ONLINE USER ERROR:",
+          error
+        );
+
+      }
+
+    }
   );
 
-  startOnlineCounter();
 
-  const myWaitingRef =
+  onlineUsersListener =
+    onValue(
+      ref(
+        db,
+        "onlineUsers"
+      ),
+      (snapshot) => {
+
+        const users =
+          snapshot.val();
+
+
+        const count =
+          users
+            ? Object.keys(users).length
+            : 0;
+
+
+        if (onlineCount) {
+
+          onlineCount.innerText =
+            count;
+
+        }
+
+      }
+    );
+
+}
+
+
+// ======================================================
+// ADD USER TO WAITING
+// ======================================================
+
+async function addToWaiting() {
+
+  if (!myId) {
+
+    return;
+
+  }
+
+
+  const waitingRef =
     ref(
       db,
       "waiting/" + myId
     );
 
+
+  await set(
+    waitingRef,
+    {
+
+      id:
+        myId,
+
+      username:
+        myUsername,
+
+      roomId:
+        null,
+
+      partnerUsername:
+        null
+
+    }
+  );
+
+
+  onDisconnect(
+    waitingRef
+  ).remove();
+
+
+  return waitingRef;
+
+}
+
+
+// ======================================================
+// START CHAT
+// ======================================================
+
+async function startChat() {
+
+  if (listening) {
+
+    return;
+
+  }
+
+
+  // --------------------------------------------
+  // GET CUSTOM USERNAME
+  // --------------------------------------------
+
+  myUsername =
+    getUsername();
+
+
+  // --------------------------------------------
+  // CREATE USER ID
+  // --------------------------------------------
+
+  myId =
+    generateUserId();
+
+
+  roomId =
+    null;
+
+
+  listening =
+    true;
+
+
+  setStatus(
+    "Status: Waiting..."
+  );
+
+
+  if (chatBox) {
+
+    chatBox.innerHTML =
+      "";
+
+  }
+
+
+  // --------------------------------------------
+  // ONLINE COUNTER
+  // --------------------------------------------
+
+  startOnlineCounter();
+
+
   try {
 
-    await set(
-      myWaitingRef,
-      {
-        id: myId,
-        username: myUsername,
-        roomId: null,
-        partnerUsername: null
-      }
-    );
+    // ------------------------------------------
+    // ADD TO WAITING
+    // ------------------------------------------
 
-    onDisconnect(
-      myWaitingRef
-    ).remove();
+    const waitingRef =
+      await addToWaiting();
+
+
+    // ------------------------------------------
+    // LISTEN TO OWN WAITING ENTRY
+    // ------------------------------------------
+
+    waitingListener =
+      onValue(
+        waitingRef,
+        (snapshot) => {
+
+          const data =
+            snapshot.val();
+
+
+          if (!data) {
+
+            return;
+
+          }
+
+
+          if (!data.roomId) {
+
+            return;
+
+          }
+
+
+          if (roomId) {
+
+            return;
+
+          }
+
+
+          // ------------------------------------
+          // ROOM CONNECTED
+          // ------------------------------------
+
+          roomId =
+            data.roomId;
+
+
+          set(
+            ref(
+              db,
+              "rooms/" +
+              roomId +
+              "/status"
+            ),
+            "connected"
+          );
+
+
+          setStatus(
+            "Status: Connected with " +
+            (
+              data.partnerUsername ||
+              "Stranger"
+            )
+          );
+
+
+          // ------------------------------------
+          // START CHAT LISTENERS
+          // ------------------------------------
+
+          listenMessages();
+
+          listenRoomStatus();
+
+
+          // ------------------------------------
+          // REMOVE WAITING ENTRY
+          // ------------------------------------
+
+          remove(
+            waitingRef
+          );
+
+        }
+      );
+
+
+    // ------------------------------------------
+    // FIND STRANGER
+    // ------------------------------------------
 
     await findMatch();
 
-    onValue(
-      myWaitingRef,
-      (snapshot) => {
-
-        const data =
-          snapshot.val();
-
-        if (!data) return;
-
-        if (!data.roomId) return;
-
-        if (roomId) return;
-
-        roomId =
-          data.roomId;
-
-        set(
-          ref(
-            db,
-            "rooms/" +
-            roomId +
-            "/status"
-          ),
-          "connected"
-        );
-
-        setStatus(
-          "Status: Connected with " +
-          (
-            data.partnerUsername ||
-            "Stranger"
-          )
-        );
-
-        listenMessages();
-
-        listenRoomStatus();
-
-        remove(
-          myWaitingRef
-        );
-
-      }
-    );
 
   } catch (error) {
 
@@ -263,49 +565,71 @@ async function startChat() {
       error
     );
 
-    listening = false;
-    myId = null;
+
+    resetUser();
+
 
     setStatus(
       "Status: Connection error"
     );
 
+
     alert(
-      "Firebase connection error. Check Firebase Database Rules."
+      "Firebase connection error. Check your Firebase Database Rules."
     );
 
   }
+
 }
 
 
-// =====================================================
-// FIND RANDOM MATCH
-// =====================================================
+// ======================================================
+// FIND RANDOM STRANGER
+// ======================================================
 
 async function findMatch() {
 
   const waitingRef =
-    ref(db, "waiting");
+    ref(
+      db,
+      "waiting"
+    );
+
 
   await runTransaction(
     waitingRef,
     (currentData) => {
 
+      // No users
+
       if (!currentData) {
+
         return currentData;
+
       }
+
+
+      // ----------------------------------------
+      // GET USERS
+      // ----------------------------------------
 
       const users =
         Object.values(
           currentData
         );
 
-      const otherUsers =
+
+      // ----------------------------------------
+      // FIND AVAILABLE USERS
+      // ----------------------------------------
+
+      const availableUsers =
         users.filter(
           (user) => {
 
             return (
               user &&
+              user.id &&
               user.id !== myId &&
               !user.roomId
             );
@@ -313,26 +637,46 @@ async function findMatch() {
           }
         );
 
+
+      // Nobody available
+
       if (
-        otherUsers.length === 0
+        availableUsers.length === 0
       ) {
+
         return currentData;
+
       }
 
-      const otherUser =
-        otherUsers[
+
+      // ----------------------------------------
+      // RANDOM USER
+      // ----------------------------------------
+
+      const stranger =
+        availableUsers[
           Math.floor(
             Math.random() *
-            otherUsers.length
+            availableUsers.length
           )
         ];
 
+
+      // Make sure both exist
+
       if (
         !currentData[myId] ||
-        !currentData[otherUser.id]
+        !currentData[stranger.id]
       ) {
+
         return currentData;
+
       }
+
+
+      // ----------------------------------------
+      // CREATE ROOM
+      // ----------------------------------------
 
       const newRoomId =
         "room_" +
@@ -340,160 +684,355 @@ async function findMatch() {
         "_" +
         Math.random()
           .toString(36)
-          .substring(2, 8);
+          .substring(2, 9);
+
+
+      // ----------------------------------------
+      // USER 1
+      // ----------------------------------------
 
       currentData[myId].roomId =
         newRoomId;
 
+
       currentData[myId]
         .partnerUsername =
-        otherUser.username;
+        stranger.username ||
+        "Stranger";
 
-      currentData[
-        otherUser.id
-      ].roomId =
+
+      // ----------------------------------------
+      // USER 2
+      // ----------------------------------------
+
+      currentData[stranger.id].roomId =
         newRoomId;
 
-      currentData[
-        otherUser.id
-      ].partnerUsername =
-        myUsername;
+
+      currentData[stranger.id]
+        .partnerUsername =
+        myUsername ||
+        "Stranger";
+
 
       return currentData;
 
     }
   );
+
 }
 
 
-// =====================================================
+// ======================================================
 // SEND MESSAGE
-// =====================================================
+// ======================================================
 
-function sendMessage() {
+async function sendMessage() {
 
-  if (!msgInput) return;
+  if (!msgInput) {
 
-  const msg =
+    return;
+
+  }
+
+
+  const message =
     msgInput.value.trim();
 
-  if (!msg) return;
 
-  if (!roomId) {
+  if (!message) {
+
+    return;
+
+  }
+
+
+  if (!roomId || !myId) {
 
     alert(
       "Pehle kisi stranger se connect ho!"
     );
 
     return;
+
   }
 
-  push(
-    ref(
-      db,
-      "messages/" + roomId
-    ),
-    {
-      text: msg,
-      sender: myId,
-      username: myUsername,
-      timestamp: Date.now()
-    }
-  );
 
-  msgInput.value = "";
+  try {
 
-  msgInput.focus();
+    await push(
+      ref(
+        db,
+        "messages/" +
+        roomId
+      ),
+      {
+
+        text:
+          message,
+
+        sender:
+          myId,
+
+        username:
+          myUsername,
+
+        timestamp:
+          Date.now()
+
+      }
+    );
+
+
+    msgInput.value =
+      "";
+
+
+    msgInput.focus();
+
+  } catch (error) {
+
+    console.error(
+      "SEND MESSAGE ERROR:",
+      error
+    );
+
+  }
+
 }
 
 
-// =====================================================
-// RECEIVE MESSAGES
-// =====================================================
+// ======================================================
+// LISTEN MESSAGES
+// ======================================================
 
 function listenMessages() {
 
-  if (!roomId) return;
+  if (!roomId) {
+
+    return;
+
+  }
+
 
   const currentRoomId =
     roomId;
 
-  onValue(
-    ref(
-      db,
-      "messages/" +
-      currentRoomId
-    ),
-    (snapshot) => {
 
-      if (
-        roomId !== currentRoomId
-      ) {
-        return;
-      }
+  messageListener =
+    onValue(
+      ref(
+        db,
+        "messages/" +
+        currentRoomId
+      ),
+      (snapshot) => {
 
-      if (!chatBox) return;
+        // Ignore old room
 
-      chatBox.innerHTML = "";
+        if (
+          roomId !==
+          currentRoomId
+        ) {
 
-      const messages =
-        snapshot.val();
+          return;
 
-      if (!messages) return;
+        }
 
-      Object.values(
-        messages
-      ).forEach(
-        (message) => {
 
-          const div =
-            document.createElement(
-              "div"
-            );
+        if (!chatBox) {
 
-          div.style.marginBottom =
-            "8px";
+          return;
 
-          div.innerText =
-            (
+        }
+
+
+        chatBox.innerHTML =
+          "";
+
+
+        const messages =
+          snapshot.val();
+
+
+        if (!messages) {
+
+          return;
+
+        }
+
+
+        const messageList =
+          Object.values(
+            messages
+          );
+
+
+        // Sort by timestamp
+
+        messageList.sort(
+          (a, b) =>
+            (a.timestamp || 0) -
+            (b.timestamp || 0)
+        );
+
+
+        messageList.forEach(
+          (message) => {
+
+            const div =
+              document.createElement(
+                "div"
+              );
+
+
+            const name =
               message.sender === myId
                 ? "You"
                 : (
                     message.username ||
                     "Stranger"
-                  )
-            ) +
-            ": " +
-            message.text;
+                  );
 
-          chatBox.appendChild(
-            div
-          );
 
-        }
-      );
+            div.innerText =
+              name +
+              ": " +
+              (
+                message.text ||
+                ""
+              );
 
-      chatBox.scrollTop =
-        chatBox.scrollHeight;
 
-    }
-  );
+            chatBox.appendChild(
+              div
+            );
+
+          }
+        );
+
+
+        chatBox.scrollTop =
+          chatBox.scrollHeight;
+
+      }
+    );
+
 }
 
 
-// =====================================================
-// DISCONNECT
-// =====================================================
+// ======================================================
+// LISTEN ROOM STATUS
+// ======================================================
+
+function listenRoomStatus() {
+
+  if (!roomId) {
+
+    return;
+
+  }
+
+
+  const currentRoomId =
+    roomId;
+
+
+  const roomRef =
+    ref(
+      db,
+      "rooms/" +
+      currentRoomId
+    );
+
+
+  roomStatusListener =
+    onValue(
+      roomRef,
+      (snapshot) => {
+
+        const room =
+          snapshot.val();
+
+
+        if (
+          !room ||
+          roomId !== currentRoomId
+        ) {
+
+          return;
+
+        }
+
+
+        if (
+          room.status ===
+          "disconnected"
+        ) {
+
+          // ----------------------------------
+          // STOP VOICE
+          // ----------------------------------
+
+          endVoice();
+
+
+          // ----------------------------------
+          // RESET ROOM
+          // ----------------------------------
+
+          roomId =
+            null;
+
+
+          listening =
+            false;
+
+
+          setStatus(
+            "Status: Stranger disconnected"
+          );
+
+
+          if (chatBox) {
+
+            chatBox.innerHTML =
+              "";
+
+          }
+
+        }
+
+      }
+    );
+
+}
+
+
+// ======================================================
+// DISCONNECT CHAT
+// ======================================================
 
 async function disconnectChat() {
 
   const oldId =
     myId;
 
+
   const oldRoom =
     roomId;
 
+
+  // --------------------------------------------
+  // STOP VOICE
+  // --------------------------------------------
+
   endVoice();
+
+
+  // --------------------------------------------
+  // REMOVE WAITING
+  // --------------------------------------------
 
   if (oldId) {
 
@@ -507,6 +1046,21 @@ async function disconnectChat() {
         )
       );
 
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+    }
+
+
+    // ------------------------------------------
+    // REMOVE ONLINE USER
+    // ------------------------------------------
+
+    try {
+
       await remove(
         ref(
           db,
@@ -517,10 +1071,18 @@ async function disconnectChat() {
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        error
+      );
 
     }
+
   }
+
+
+  // --------------------------------------------
+  // DISCONNECT ROOM
+  // --------------------------------------------
 
   if (oldRoom) {
 
@@ -538,117 +1100,123 @@ async function disconnectChat() {
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "ROOM DISCONNECT ERROR:",
+        error
+      );
 
     }
+
   }
 
-  myId = null;
-  myUsername = null;
-  roomId = null;
-  listening = false;
+
+  // --------------------------------------------
+  // RESET
+  // --------------------------------------------
+
+  myId =
+    null;
+
+
+  roomId =
+    null;
+
+
+  listening =
+    false;
+
 
   if (chatBox) {
-    chatBox.innerHTML = "";
+
+    chatBox.innerHTML =
+      "";
+
   }
+
 
   setStatus(
     "Status: Stranger disconnected"
   );
+
 }
 
 
-// =====================================================
+// ======================================================
 // NEXT STRANGER
-// =====================================================
+// ======================================================
 
 async function nextStranger() {
 
   await disconnectChat();
 
+
+  setStatus(
+    "Status: Finding stranger..."
+  );
+
+
   setTimeout(
     () => {
+
       startChat();
+
     },
-    500
+    700
   );
+
 }
 
 
-// =====================================================
-// STRANGER DISCONNECT DETECTION
-// =====================================================
+// ======================================================
+// RESET USER
+// ======================================================
 
-function listenRoomStatus() {
+function resetUser() {
 
-  if (!roomId) return;
+  myId =
+    null;
 
-  const currentRoomId =
-    roomId;
+  roomId =
+    null;
 
-  const roomRef =
-    ref(
-      db,
-      "rooms/" +
-      currentRoomId
-    );
+  listening =
+    false;
 
-  onValue(
-    roomRef,
-    (snapshot) => {
-
-      const room =
-        snapshot.val();
-
-      if (
-        room &&
-        room.status ===
-        "disconnected" &&
-        roomId ===
-        currentRoomId
-      ) {
-
-        endVoice();
-
-        roomId = null;
-
-        listening = false;
-
-        setStatus(
-          "Status: Stranger disconnected"
-        );
-
-        if (chatBox) {
-          chatBox.innerHTML = "";
-        }
-      }
-
-    }
-  );
 }
 
 
-// =====================================================
-// WEBRTC
-// =====================================================
+// ======================================================
+// WEBRTC CONFIG
+// ======================================================
 
 const rtcConfig = {
 
   iceServers: [
+
     {
       urls:
         "stun:stun.l.google.com:19302"
+    },
+
+    {
+      urls:
+        "stun:stun1.l.google.com:19302"
     }
+
   ]
 
 };
 
 
-// =====================================================
-// START VOICE
-// =====================================================
+// ======================================================
+// START VOICE CHAT
+// ======================================================
 
 async function startVoice() {
+
+  // --------------------------------------------
+  // CHECK ROOM
+  // --------------------------------------------
 
   if (!roomId) {
 
@@ -657,9 +1225,24 @@ async function startVoice() {
     );
 
     return;
+
   }
 
-  if (peerConnection) return;
+
+  // --------------------------------------------
+  // ALREADY RUNNING
+  // --------------------------------------------
+
+  if (peerConnection) {
+
+    return;
+
+  }
+
+
+  // --------------------------------------------
+  // CHECK MICROPHONE
+  // --------------------------------------------
 
   if (
     !navigator.mediaDevices ||
@@ -667,28 +1250,59 @@ async function startVoice() {
   ) {
 
     alert(
-      "Voice chat browser mein supported nahi hai."
+      "Is browser mein microphone supported nahi hai."
     );
 
     return;
+
   }
+
 
   try {
 
     const currentRoomId =
       roomId;
 
+
+    voiceRoomId =
+      currentRoomId;
+
+
+    voiceStarted =
+      true;
+
+
+    pendingIceCandidates =
+      [];
+
+
+    // ------------------------------------------
+    // MICROPHONE
+    // ------------------------------------------
+
     localStream =
       await navigator
         .mediaDevices
-        .getUserMedia({
-          audio: true
-        });
+        .getUserMedia(
+          {
+            audio: true
+          }
+        );
+
+
+    // ------------------------------------------
+    // PEER CONNECTION
+    // ------------------------------------------
 
     peerConnection =
       new RTCPeerConnection(
         rtcConfig
       );
+
+
+    // ------------------------------------------
+    // ADD MICROPHONE TRACK
+    // ------------------------------------------
 
     localStream
       .getTracks()
@@ -703,573 +1317,41 @@ async function startVoice() {
         }
       );
 
+
+    // ------------------------------------------
+    // RECEIVE STRANGER AUDIO
+    // ------------------------------------------
+
     peerConnection.ontrack =
       (event) => {
 
-        if (!remoteAudio) return;
+        if (!remoteAudio) {
 
-        remoteAudio.srcObject =
-          event.streams[0];
+          return;
+
+        }
+
+
+        if (
+          event.streams &&
+          event.streams[0]
+        ) {
+
+          remoteAudio.srcObject =
+            event.streams[0];
+
+        }
+
 
         remoteAudio
           .play()
           .catch(
             () => {}
           );
+
       };
 
-    peerConnection.onicecandidate =
-      (event) => {
 
-        if (!event.candidate) {
-          return;
-        }
-
-        push(
-          ref(
-            db,
-            "voice/" +
-            currentRoomId +
-            "/candidates/" +
-            myId
-          ),
-          event.candidate.toJSON()
-        );
-      };
-
-    setStatus(
-      "Status: Voice starting..."
-    );
-
-    const callerRef =
-      ref(
-        db,
-        "voice/" +
-        currentRoomId +
-        "/caller"
-      );
-
-    const result =
-      await runTransaction(
-        callerRef,
-        (current) => {
-
-          return current || myId;
-
-        }
-      );
-
-    const callerId =
-      result.snapshot.val();
-
-    if (
-      callerId === myId
-    ) {
-
-      const offer =
-        await peerConnection
-          .createOffer();
-
-      await peerConnection
-        .setLocalDescription(
-          offer
-        );
-
-      await set(
-        ref(
-          db,
-          "voice/" +
-          currentRoomId +
-          "/offer"
-        ),
-        {
-          type: offer.type,
-          sdp: offer.sdp
-        }
-      );
-
-      listenForVoiceAnswer(
-        currentRoomId
-      );
-
-    } else {
-
-      listenForVoiceOffer(
-        currentRoomId
-      );
-
-    }
-
-    listenForVoiceCandidates(
-      currentRoomId
-    );
-
-  } catch (error) {
-
-    console.error(
-      "VOICE ERROR:",
-      error
-    );
-
-    endVoice();
-
-    alert(
-      "Microphone permission allow karo."
-    );
-
-    setStatus(
-      "Status: Connected"
-    );
-  }
-}
-
-
-// =====================================================
-// RECEIVE VOICE OFFER
-// =====================================================
-
-function listenForVoiceOffer(
-  currentRoomId
-) {
-
-  const offerRef =
-    ref(
-      db,
-      "voice/" +
-      currentRoomId +
-      "/offer"
-    );
-
-  onValue(
-    offerRef,
-    async (snapshot) => {
-
-      const offer =
-        snapshot.val();
-
-      if (
-        !offer ||
-        !peerConnection
-      ) {
-        return;
-      }
-
-      if (
-        peerConnection
-          .remoteDescription
-      ) {
-        return;
-      }
-
-      try {
-
-        await peerConnection
-          .setRemoteDescription(
-            new RTCSessionDescription(
-              offer
-            )
-          );
-
-        const answer =
-          await peerConnection
-            .createAnswer();
-
-        await peerConnection
-          .setLocalDescription(
-            answer
-          );
-
-        await set(
-          ref(
-            db,
-            "voice/" +
-            currentRoomId +
-            "/answer"
-          ),
-          {
-            type: answer.type,
-            sdp: answer.sdp
-          }
-        );
-
-        setStatus(
-          "Status: Voice connected 🎙️"
-        );
-
-      } catch (error) {
-
-        console.error(
-          "VOICE OFFER ERROR:",
-          error
-        );
-
-      }
-    }
-  );
-}
-
-
-// =====================================================
-// RECEIVE VOICE ANSWER
-// =====================================================
-
-function listenForVoiceAnswer(
-  currentRoomId
-) {
-
-  const answerRef =
-    ref(
-      db,
-      "voice/" +
-      currentRoomId +
-      "/answer"
-    );
-
-  onValue(
-    answerRef,
-    async (snapshot) => {
-
-      const answer =
-        snapshot.val();
-
-      if (
-        !answer ||
-        !peerConnection
-      ) {
-        return;
-      }
-
-      if (
-        peerConnection
-          .remoteDescription
-      ) {
-        return;
-      }
-
-      try {
-
-        await peerConnection
-          .setRemoteDescription(
-            new RTCSessionDescription(
-              answer
-            )
-          );
-
-        setStatus(
-          "Status: Voice connected 🎙️"
-        );
-
-      } catch (error) {
-
-        console.error(
-          "VOICE ANSWER ERROR:",
-          error
-        );
-
-      }
-    }
-  );
-}
-
-
-// =====================================================
-// ICE CANDIDATES
-// =====================================================
-
-function listenForVoiceCandidates(
-  currentRoomId
-) {
-
-  const candidatesRef =
-    ref(
-      db,
-      "voice/" +
-      currentRoomId +
-      "/candidates"
-    );
-
-  const addedCandidates =
-    new Set();
-
-  onValue(
-    candidatesRef,
-    async (snapshot) => {
-
-      const allCandidates =
-        snapshot.val();
-
-      if (
-        !allCandidates ||
-        !peerConnection
-      ) {
-        return;
-      }
-
-      for (
-        const userId
-        of Object.keys(
-          allCandidates
-        )
-      ) {
-
-        if (
-          userId === myId
-        ) {
-          continue;
-        }
-
-        const candidates =
-          allCandidates[
-            userId
-          ];
-
-        if (!candidates) {
-          continue;
-        }
-
-        for (
-          const candidateId
-          of Object.keys(
-            candidates
-          )
-        ) {
-
-          if (
-            addedCandidates.has(
-              candidateId
-            )
-          ) {
-            continue;
-          }
-
-          addedCandidates.add(
-            candidateId
-          );
-
-          try {
-
-            await peerConnection
-              .addIceCandidate(
-                new RTCIceCandidate(
-                  candidates[
-                    candidateId
-                  ]
-                )
-              );
-
-          } catch (error) {
-
-            console.error(
-              "ICE ERROR:",
-              error
-            );
-
-          }
-        }
-      }
-    }
-  );
-}
-
-
-// =====================================================
-// MUTE
-// =====================================================
-
-function muteVoice() {
-
-  if (!localStream) return;
-
-  localStream
-    .getAudioTracks()
-    .forEach(
-      (track) => {
-
-        track.enabled =
-          !track.enabled;
-
-      }
-    );
-}
-
-
-// =====================================================
-// END VOICE
-// =====================================================
-
-function endVoice() {
-
-  if (localStream) {
-
-    localStream
-      .getTracks()
-      .forEach(
-        (track) => {
-          track.stop();
-        }
-      );
-
-    localStream = null;
-  }
-
-  if (peerConnection) {
-
-    peerConnection.close();
-
-    peerConnection = null;
-  }
-
-  if (remoteAudio) {
-
-    remoteAudio.srcObject =
-      null;
-  }
-}
-
-
-// =====================================================
-// BUTTONS
-// =====================================================
-
-const startBtn =
-  document.getElementById(
-    "startBtn"
-  );
-
-if (startBtn) {
-
-  startBtn.addEventListener(
-    "click",
-    startChat
-  );
-
-}
-
-
-const disconnectBtn =
-  document.getElementById(
-    "disconnectBtn"
-  );
-
-if (disconnectBtn) {
-
-  disconnectBtn.addEventListener(
-    "click",
-    nextStranger
-  );
-
-}
-
-
-const sendBtn =
-  document.getElementById(
-    "sendBtn"
-  );
-
-if (sendBtn) {
-
-  sendBtn.addEventListener(
-    "click",
-    sendMessage
-  );
-
-}
-
-
-const voiceBtn =
-  document.getElementById(
-    "voiceBtn"
-  );
-
-if (voiceBtn) {
-
-  voiceBtn.addEventListener(
-    "click",
-    startVoice
-  );
-
-}
-
-
-const muteBtn =
-  document.getElementById(
-    "muteBtn"
-  );
-
-if (muteBtn) {
-
-  muteBtn.addEventListener(
-    "click",
-    muteVoice
-  );
-
-}
-
-
-const endVoiceBtn =
-  document.getElementById(
-    "endVoiceBtn"
-  );
-
-if (endVoiceBtn) {
-
-  endVoiceBtn.addEventListener(
-    "click",
-    endVoice
-  );
-
-}
-
-
-// =====================================================
-// ENTER TO SEND
-// =====================================================
-
-if (msgInput) {
-
-  msgInput.addEventListener(
-    "keydown",
-    (event) => {
-
-      if (
-        event.key === "Enter"
-      ) {
-
-        event.preventDefault();
-
-        sendMessage();
-
-      }
-
-    }
-  );
-
-}
-
-
-// =====================================================
-// PAGE LOAD
-// =====================================================
-
-window.addEventListener(
-  "load",
-  () => {
-
-    if (
-      usernameInput &&
-      !usernameInput.value
-    ) {
-
-      usernameInput.value =
-        "Stranger" +
-        Math.floor(
-          Math.random() * 10000
-        );
-    }
-
-    setStatus(
-      "Status: Idle"
-    );
-
-  }
-);
+    // ------------------------------------------
+    // ICE CANDIDATE
+  
