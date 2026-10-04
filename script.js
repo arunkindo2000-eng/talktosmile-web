@@ -1,6 +1,8 @@
 // ======================================================
 // TALK TO SMILE
-// Random Chat + Custom Username + Text Chat
+// Random Chat + Username + Text Chat
+// Partner Disconnect Detection
+// WebRTC Voice Call
 // Firebase Realtime Database
 // ======================================================
 
@@ -20,7 +22,8 @@ import {
   push,
   remove,
   runTransaction,
-  onDisconnect
+  onDisconnect,
+  onChildAdded
 } from
 "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -56,33 +59,12 @@ const firebaseConfig = {
 
 
 // ======================================================
-// INITIALIZE FIREBASE
+// FIREBASE INITIALIZE
 // ======================================================
 
-let app;
-let db;
+const app = initializeApp(firebaseConfig);
 
-try {
-
-  app = initializeApp(firebaseConfig);
-
-  db = getDatabase(app);
-
-  console.log("Firebase initialized successfully");
-
-} catch (error) {
-
-  console.error(
-    "Firebase initialization error:",
-    error
-  );
-
-  alert(
-    "Firebase initialization error:\n" +
-    error.message
-  );
-
-}
+const db = getDatabase(app);
 
 
 // ======================================================
@@ -90,16 +72,57 @@ try {
 // ======================================================
 
 let myId = null;
-
 let myUsername = null;
 
 let roomId = null;
+let partnerId = null;
+let partnerUsername = null;
 
 let isSearching = false;
 
 let messageListenerStarted = false;
-
 let onlineListenerStarted = false;
+let roomPresenceStarted = false;
+
+let partnerWasOnline = false;
+let disconnectHandled = false;
+
+
+// ======================================================
+// WEBRTC VARIABLES
+// ======================================================
+
+let peerConnection = null;
+let localStream = null;
+
+let isMuted = false;
+let voiceCallActive = false;
+let callListenersStarted = false;
+
+let remoteAudio = null;
+
+
+// ======================================================
+// WEBRTC CONFIG
+// ======================================================
+
+const rtcConfig = {
+
+  iceServers: [
+
+    {
+      urls:
+        "stun:stun.l.google.com:19302"
+    },
+
+    {
+      urls:
+        "stun:stun1.l.google.com:19302"
+    }
+
+  ]
+
+};
 
 
 // ======================================================
@@ -131,15 +154,51 @@ const onlineCount =
   document.getElementById("onlineCount");
 
 
+// VOICE BUTTONS
+
+const startVoiceBtn =
+  document.getElementById("startVoiceBtn");
+
+const muteBtn =
+  document.getElementById("muteBtn");
+
+const endVoiceBtn =
+  document.getElementById("endVoiceBtn");
+
+
 // ======================================================
-// STATUS
+// REMOTE AUDIO ELEMENT
 // ======================================================
 
-function setStatus(text) {
+function createRemoteAudio() {
 
-  if (status) {
+  if (remoteAudio) {
+    return;
+  }
 
-    status.innerText = text;
+  remoteAudio =
+    document.getElementById("remoteAudio");
+
+  if (!remoteAudio) {
+
+    remoteAudio =
+      document.createElement("audio");
+
+    remoteAudio.id =
+      "remoteAudio";
+
+    remoteAudio.autoplay =
+      true;
+
+    remoteAudio.playsInline =
+      true;
+
+    remoteAudio.style.display =
+      "none";
+
+    document.body.appendChild(
+      remoteAudio
+    );
 
   }
 
@@ -147,7 +206,20 @@ function setStatus(text) {
 
 
 // ======================================================
-// CREATE USER ID
+// STATUS
+// ======================================================
+
+function setStatus(text) {
+
+  if (status) {
+    status.innerText = text;
+  }
+
+}
+
+
+// ======================================================
+// USER ID
 // ======================================================
 
 function createUserId() {
@@ -165,7 +237,7 @@ function createUserId() {
 
 
 // ======================================================
-// GET USERNAME
+// USERNAME
 // ======================================================
 
 function getUsername() {
@@ -209,66 +281,18 @@ function getUsername() {
 
 
 // ======================================================
-// FIREBASE ERROR HANDLER
+// ERROR HANDLER
 // ======================================================
 
-function showFirebaseError(
+function firebaseError(
   location,
   error
 ) {
 
   console.error(
-    "================================"
-  );
-
-  console.error(
-    "FIREBASE ERROR"
-  );
-
-  console.error(
-    "Location:",
-    location
-  );
-
-  console.error(
-    "Code:",
-    error?.code
-  );
-
-  console.error(
-    "Message:",
-    error?.message
-  );
-
-  console.error(
-    "Full error:",
+    "Firebase error:",
+    location,
     error
-  );
-
-  console.error(
-    "================================"
-  );
-
-
-  const code =
-    error?.code ||
-    "UNKNOWN_ERROR";
-
-  const message =
-    error?.message ||
-    "Unknown Firebase error";
-
-
-  alert(
-    "Firebase Error\n\n" +
-    "Location: " +
-    location +
-    "\n\n" +
-    "Code: " +
-    code +
-    "\n\n" +
-    "Message: " +
-    message
   );
 
 }
@@ -280,34 +304,11 @@ function showFirebaseError(
 
 function startOnlineCounter() {
 
-  if (!db) {
-
-    console.error(
-      "Database not initialized"
-    );
-
-    return;
-
-  }
-
-
-  if (!myId) {
-
-    console.error(
-      "Cannot start online counter: no user ID"
-    );
-
-    return;
-
-  }
-
+  if (!myId) return;
 
   if (onlineListenerStarted) {
-
     return;
-
   }
-
 
   onlineListenerStarted =
     true;
@@ -316,7 +317,8 @@ function startOnlineCounter() {
   const myOnlineRef =
     ref(
       db,
-      "onlineUsers/" + myId
+      "onlineUsers/" +
+      myId
     );
 
 
@@ -327,10 +329,6 @@ function startOnlineCounter() {
     );
 
 
-  // --------------------------------------------
-  // CONNECTION STATUS
-  // --------------------------------------------
-
   onValue(
     connectedRef,
     async (snapshot) => {
@@ -339,18 +337,9 @@ function startOnlineCounter() {
         snapshot.val() !== true
       ) {
 
-        console.log(
-          "Firebase not connected yet"
-        );
-
         return;
 
       }
-
-
-      console.log(
-        "Firebase connected"
-      );
 
 
       try {
@@ -366,15 +355,14 @@ function startOnlineCounter() {
         );
 
 
-        onDisconnect(
+        await onDisconnect(
           myOnlineRef
         ).remove();
 
-
       } catch (error) {
 
-        showFirebaseError(
-          "onlineUsers",
+        firebaseError(
+          "online counter",
           error
         );
 
@@ -383,10 +371,6 @@ function startOnlineCounter() {
     }
   );
 
-
-  // --------------------------------------------
-  // ONLINE USER COUNT
-  // --------------------------------------------
 
   onValue(
     ref(
@@ -397,7 +381,6 @@ function startOnlineCounter() {
 
       const users =
         snapshot.val();
-
 
       const count =
         users
@@ -412,14 +395,6 @@ function startOnlineCounter() {
 
       }
 
-    },
-    (error) => {
-
-      showFirebaseError(
-        "onlineUsers listener",
-        error
-      );
-
     }
   );
 
@@ -432,44 +407,19 @@ function startOnlineCounter() {
 
 async function startChat() {
 
-  console.log(
-    "START BUTTON CLICKED"
-  );
-
-
   if (!db) {
-
-    alert(
-      "Firebase database is not initialized."
-    );
-
     return;
-
   }
 
 
   if (isSearching) {
-
-    console.log(
-      "Already searching"
-    );
-
     return;
-
   }
 
-
-  // --------------------------------------------
-  // USERNAME
-  // --------------------------------------------
 
   myUsername =
     getUsername();
 
-
-  // --------------------------------------------
-  // USER ID
-  // --------------------------------------------
 
   myId =
     createUserId();
@@ -478,17 +428,44 @@ async function startChat() {
   roomId =
     null;
 
+  partnerId =
+    null;
+
+  partnerUsername =
+    null;
+
 
   isSearching =
     true;
 
+  disconnectHandled =
+    false;
+
+  partnerWasOnline =
+    false;
 
   messageListenerStarted =
     false;
 
-
   onlineListenerStarted =
     false;
+
+  roomPresenceStarted =
+    false;
+
+  callListenersStarted =
+    false;
+
+
+  stopVoiceCall(false);
+
+
+  if (chatBox) {
+
+    chatBox.innerHTML =
+      "";
+
+  }
 
 
   setStatus(
@@ -496,87 +473,46 @@ async function startChat() {
   );
 
 
-  if (chatBox) {
-
-    chatBox.innerHTML = "";
-
-  }
-
-
-  console.log(
-    "My ID:",
-    myId
-  );
-
-  console.log(
-    "My Username:",
-    myUsername
-  );
-
-
-  // --------------------------------------------
-  // START ONLINE COUNTER
-  // --------------------------------------------
-
   startOnlineCounter();
 
 
   try {
 
-    // ------------------------------------------
-    // WAITING REF
-    // ------------------------------------------
-
     const myWaitingRef =
       ref(
         db,
-        "waiting/" + myId
+        "waiting/" +
+        myId
       );
 
 
     // ------------------------------------------
-    // ADD USER TO WAITING
-    // IMPORTANT:
-    // No null values
+    // ADD TO WAITING
     // ------------------------------------------
 
     await set(
       myWaitingRef,
       {
         id: myId,
-        username: myUsername
+        username: myUsername,
+        roomId: null,
+        partnerId: null,
+        partnerUsername: null
       }
     );
 
 
-    console.log(
-      "Added to waiting successfully:",
-      myId
-    );
+    // ------------------------------------------
+    // AUTO REMOVE
+    // ------------------------------------------
+
+    await onDisconnect(
+      myWaitingRef
+    ).remove();
 
 
     // ------------------------------------------
-    // REMOVE WHEN DISCONNECTED
-    // ------------------------------------------
-
-    try {
-
-      await onDisconnect(
-        myWaitingRef
-      ).remove();
-
-    } catch (error) {
-
-      console.error(
-        "onDisconnect waiting error:",
-        error
-      );
-
-    }
-
-
-    // ------------------------------------------
-    // LISTEN TO OUR WAITING NODE
+    // LISTEN FOR MATCH
     // ------------------------------------------
 
     onValue(
@@ -587,39 +523,36 @@ async function startChat() {
           snapshot.val();
 
 
-        console.log(
-          "Waiting data:",
-          data
-        );
-
-
         if (!data) {
-
           return;
-
         }
 
 
         if (!data.roomId) {
-
           return;
-
         }
 
 
         if (roomId) {
-
           return;
-
         }
 
 
-        // ------------------------------------
-        // CONNECTED
-        // ------------------------------------
+        // --------------------------------------
+        // MATCH FOUND
+        // --------------------------------------
 
         roomId =
           data.roomId;
+
+
+        partnerId =
+          data.partnerId || null;
+
+
+        partnerUsername =
+          data.partnerUsername ||
+          "Stranger";
 
 
         isSearching =
@@ -628,36 +561,41 @@ async function startChat() {
 
         setStatus(
           "Status: Connected with " +
-          (
-            data.partnerUsername ||
-            "Stranger"
-          )
+          partnerUsername
         );
 
 
         console.log(
-          "ROOM CONNECTED:",
-          roomId
+          "CONNECTED:",
+          roomId,
+          partnerId
         );
 
 
-        // ------------------------------------
-        // ROOM STATUS
-        // ------------------------------------
+        // --------------------------------------
+        // ROOM PRESENCE
+        // --------------------------------------
 
-        await setRoomStatus();
+        await setupRoomPresence();
 
 
-        // ------------------------------------
-        // MESSAGE LISTENER
-        // ------------------------------------
+        // --------------------------------------
+        // MESSAGES
+        // --------------------------------------
 
         listenMessages();
 
 
-        // ------------------------------------
-        // REMOVE FROM WAITING
-        // ------------------------------------
+        // --------------------------------------
+        // VOICE SIGNALING
+        // --------------------------------------
+
+        setupVoiceSignaling();
+
+
+        // --------------------------------------
+        // REMOVE WAITING
+        // --------------------------------------
 
         try {
 
@@ -668,26 +606,18 @@ async function startChat() {
         } catch (error) {
 
           console.error(
-            "Remove waiting error:",
+            "Waiting remove error:",
             error
           );
 
         }
-
-      },
-      (error) => {
-
-        showFirebaseError(
-          "waiting listener",
-          error
-        );
 
       }
     );
 
 
     // ------------------------------------------
-    // FIND STRANGER
+    // FIND RANDOM USER
     // ------------------------------------------
 
     await findMatch();
@@ -696,7 +626,7 @@ async function startChat() {
   } catch (error) {
 
     console.error(
-      "START CHAT ERROR:",
+      "Start chat error:",
       error
     );
 
@@ -704,63 +634,15 @@ async function startChat() {
     isSearching =
       false;
 
-    myId =
-      null;
-
-    roomId =
-      null;
-
 
     setStatus(
-      "Status: Error"
+      "Status: Firebase Error"
     );
 
 
-    showFirebaseError(
-      "startChat / waiting",
-      error
-    );
-
-  }
-
-}
-
-
-// ======================================================
-// SET ROOM STATUS
-// ======================================================
-
-async function setRoomStatus() {
-
-  if (!db) return;
-
-  if (!roomId) return;
-
-
-  try {
-
-    await set(
-      ref(
-        db,
-        "rooms/" +
-        roomId +
-        "/status"
-      ),
-      "connected"
-    );
-
-
-    console.log(
-      "Room status set:",
-      roomId
-    );
-
-
-  } catch (error) {
-
-    showFirebaseError(
-      "rooms/status",
-      error
+    alert(
+      "Firebase error: " +
+      error.message
     );
 
   }
@@ -773,18 +655,6 @@ async function setRoomStatus() {
 // ======================================================
 
 async function findMatch() {
-
-  if (!db) {
-
-    return;
-
-  }
-
-
-  console.log(
-    "Looking for stranger..."
-  );
-
 
   const waitingRef =
     ref(
@@ -799,30 +669,16 @@ async function findMatch() {
       waitingRef,
       (currentData) => {
 
-        // ------------------------------------
-        // NO USERS
-        // ------------------------------------
-
         if (!currentData) {
-
           return currentData;
-
         }
 
-
-        // ------------------------------------
-        // GET USERS
-        // ------------------------------------
 
         const users =
           Object.values(
             currentData
           );
 
-
-        // ------------------------------------
-        // FIND AVAILABLE USERS
-        // ------------------------------------
 
         const availableUsers =
           users.filter(
@@ -839,26 +695,14 @@ async function findMatch() {
           );
 
 
-        // ------------------------------------
-        // NO STRANGER
-        // ------------------------------------
-
         if (
           availableUsers.length === 0
         ) {
-
-          console.log(
-            "No stranger found."
-          );
 
           return currentData;
 
         }
 
-
-        // ------------------------------------
-        // RANDOM STRANGER
-        // ------------------------------------
 
         const stranger =
           availableUsers[
@@ -868,10 +712,6 @@ async function findMatch() {
             )
           ];
 
-
-        // ------------------------------------
-        // SAFETY CHECK
-        // ------------------------------------
 
         if (
           !currentData[myId] ||
@@ -883,10 +723,6 @@ async function findMatch() {
         }
 
 
-        // ------------------------------------
-        // CREATE ROOM
-        // ------------------------------------
-
         const newRoomId =
           "room_" +
           Date.now() +
@@ -896,34 +732,32 @@ async function findMatch() {
             .substring(2, 8);
 
 
-        // ------------------------------------
-        // MY DATA
-        // ------------------------------------
+        // ME
 
         currentData[myId].roomId =
           newRoomId;
 
-        currentData[myId].partnerUsername =
+        currentData[myId].partnerId =
+          stranger.id;
+
+        currentData[myId]
+          .partnerUsername =
           stranger.username ||
           "Stranger";
 
 
-        // ------------------------------------
-        // STRANGER DATA
-        // ------------------------------------
+        // STRANGER
 
         currentData[stranger.id].roomId =
           newRoomId;
 
-        currentData[stranger.id].partnerUsername =
+        currentData[stranger.id].partnerId =
+          myId;
+
+        currentData[stranger.id]
+          .partnerUsername =
           myUsername ||
           "Stranger";
-
-
-        console.log(
-          "MATCH CREATED:",
-          newRoomId
-        );
 
 
         return currentData;
@@ -931,20 +765,198 @@ async function findMatch() {
       }
     );
 
-
-    console.log(
-      "Match transaction completed"
-    );
-
-
   } catch (error) {
 
-    showFirebaseError(
-      "waiting transaction",
+    firebaseError(
+      "findMatch",
       error
     );
 
   }
+
+}
+
+
+// ======================================================
+// ROOM PRESENCE
+// THIS DETECTS PARTNER DISCONNECT
+// ======================================================
+
+async function setupRoomPresence() {
+
+  if (!roomId || !myId) {
+    return;
+  }
+
+
+  if (roomPresenceStarted) {
+    return;
+  }
+
+
+  roomPresenceStarted =
+    true;
+
+
+  const myPresenceRef =
+    ref(
+      db,
+      "rooms/" +
+      roomId +
+      "/users/" +
+      myId
+    );
+
+
+  try {
+
+    await set(
+      myPresenceRef,
+      {
+        id: myId,
+        username: myUsername,
+        online: true,
+        joinedAt: Date.now()
+      }
+    );
+
+
+    // ------------------------------------------
+    // REMOVE AUTOMATICALLY WHEN DISCONNECTED
+    // ------------------------------------------
+
+    await onDisconnect(
+      myPresenceRef
+    ).remove();
+
+
+  } catch (error) {
+
+    console.error(
+      "Presence setup error:",
+      error
+    );
+
+  }
+
+
+  // --------------------------------------------
+  // LISTEN TO ROOM USERS
+  // --------------------------------------------
+
+  onValue(
+    ref(
+      db,
+      "rooms/" +
+      roomId +
+      "/users"
+    ),
+    (snapshot) => {
+
+      const users =
+        snapshot.val() || {};
+
+
+      // Partner is currently online
+      if (
+        partnerId &&
+        users[partnerId]
+      ) {
+
+        partnerWasOnline =
+          true;
+
+        return;
+
+      }
+
+
+      // ----------------------------------------
+      // PARTNER DISCONNECTED
+      // ----------------------------------------
+
+      if (
+        partnerWasOnline &&
+        partnerId &&
+        !users[partnerId] &&
+        !disconnectHandled
+      ) {
+
+        disconnectHandled =
+          true;
+
+
+        console.log(
+          "PARTNER DISCONNECTED"
+        );
+
+
+        handlePartnerDisconnected();
+
+      }
+
+    }
+  );
+
+}
+
+
+// ======================================================
+// PARTNER DISCONNECTED
+// ======================================================
+
+async function handlePartnerDisconnected() {
+
+  stopVoiceCall(false);
+
+
+  setStatus(
+    "Status: Stranger disconnected"
+  );
+
+
+  if (chatBox) {
+
+    const div =
+      document.createElement(
+        "div"
+      );
+
+
+    div.innerText =
+      "⚠️ Stranger disconnected.";
+
+
+    div.style.color =
+      "#ff5252";
+
+    div.style.fontWeight =
+      "bold";
+
+
+    chatBox.appendChild(
+      div
+    );
+
+  }
+
+
+  alert(
+    "⚠️ Stranger disconnected."
+  );
+
+
+  roomId =
+    null;
+
+  partnerId =
+    null;
+
+  partnerUsername =
+    null;
+
+  isSearching =
+    false;
 
 }
 
@@ -955,17 +967,8 @@ async function findMatch() {
 
 async function sendMessage() {
 
-  if (!db) {
-
-    return;
-
-  }
-
-
   if (!msgInput) {
-
     return;
-
   }
 
 
@@ -974,16 +977,14 @@ async function sendMessage() {
 
 
   if (!message) {
-
     return;
-
   }
 
 
   if (!roomId) {
 
     alert(
-      "Pehle Start Chat karo aur stranger se connect ho."
+      "Pehle stranger se connect ho."
     );
 
     return;
@@ -1011,14 +1012,12 @@ async function sendMessage() {
     msgInput.value =
       "";
 
-
     msgInput.focus();
-
 
   } catch (error) {
 
-    showFirebaseError(
-      "messages",
+    firebaseError(
+      "sendMessage",
       error
     );
 
@@ -1033,24 +1032,13 @@ async function sendMessage() {
 
 function listenMessages() {
 
-  if (!db) {
-
-    return;
-
-  }
-
-
   if (!roomId) {
-
     return;
-
   }
 
 
   if (messageListenerStarted) {
-
     return;
-
   }
 
 
@@ -1060,12 +1048,6 @@ function listenMessages() {
 
   const currentRoom =
     roomId;
-
-
-  console.log(
-    "Listening to messages:",
-    currentRoom
-  );
 
 
   onValue(
@@ -1086,9 +1068,7 @@ function listenMessages() {
 
 
       if (!chatBox) {
-
         return;
-
       }
 
 
@@ -1101,9 +1081,7 @@ function listenMessages() {
 
 
       if (!messages) {
-
         return;
-
       }
 
 
@@ -1158,16 +1136,909 @@ function listenMessages() {
       chatBox.scrollTop =
         chatBox.scrollHeight;
 
-    },
-    (error) => {
+    }
+  );
 
-      showFirebaseError(
-        "messages listener",
-        error
-      );
+}
+
+
+// ======================================================
+// WEBRTC
+// VOICE SIGNALING
+// ======================================================
+
+function setupVoiceSignaling() {
+
+  if (
+    !roomId ||
+    !myId ||
+    !partnerId
+  ) {
+
+    console.log(
+      "Voice signaling waiting for partner ID"
+    );
+
+    return;
+
+  }
+
+
+  if (callListenersStarted) {
+    return;
+  }
+
+
+  callListenersStarted =
+    true;
+
+
+  createRemoteAudio();
+
+
+  const callRef =
+    ref(
+      db,
+      "calls/" +
+      roomId
+    );
+
+
+  // --------------------------------------------
+  // OFFER LISTENER
+  // --------------------------------------------
+
+  onValue(
+    ref(
+      db,
+      "calls/" +
+      roomId +
+      "/offer"
+    ),
+    async (snapshot) => {
+
+      const offer =
+        snapshot.val();
+
+
+      if (!offer) {
+        return;
+      }
+
+
+      try {
+
+        if (!peerConnection) {
+
+          await preparePeerConnection();
+
+        }
+
+
+        if (
+          !peerConnection
+            .currentRemoteDescription
+        ) {
+
+          await peerConnection
+            .setRemoteDescription(
+              new RTCSessionDescription(
+                offer
+              )
+            );
+
+
+          const answer =
+            await peerConnection
+              .createAnswer();
+
+
+          await peerConnection
+            .setLocalDescription(
+              answer
+            );
+
+
+          await set(
+            ref(
+              db,
+              "calls/" +
+              roomId +
+              "/answer"
+            ),
+            {
+              type:
+                answer.type,
+
+              sdp:
+                answer.sdp
+            }
+          );
+
+
+          voiceCallActive =
+            true;
+
+
+          setStatus(
+            "📞 Voice connected with " +
+            partnerUsername
+          );
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Offer error:",
+          error
+        );
+
+      }
 
     }
   );
+
+
+  // --------------------------------------------
+  // ANSWER LISTENER
+  // --------------------------------------------
+
+  onValue(
+    ref(
+      db,
+      "calls/" +
+      roomId +
+      "/answer"
+    ),
+    async (snapshot) => {
+
+      const answer =
+        snapshot.val();
+
+
+      if (!answer) {
+        return;
+      }
+
+
+      if (!peerConnection) {
+        return;
+      }
+
+
+      try {
+
+        if (
+          !peerConnection
+            .currentRemoteDescription
+        ) {
+
+          await peerConnection
+            .setRemoteDescription(
+              new RTCSessionDescription(
+                answer
+              )
+            );
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Answer error:",
+          error
+        );
+
+      }
+
+    }
+  );
+
+
+  // --------------------------------------------
+  // REMOTE ICE CANDIDATES
+  // --------------------------------------------
+
+  onChildAdded(
+    ref(
+      db,
+      "calls/" +
+      roomId +
+      "/candidates/" +
+      partnerId
+    ),
+    async (snapshot) => {
+
+      const candidate =
+        snapshot.val();
+
+
+      if (!candidate) {
+        return;
+      }
+
+
+      if (!peerConnection) {
+
+        await preparePeerConnection();
+
+      }
+
+
+      try {
+
+        await peerConnection
+          .addIceCandidate(
+            new RTCIceCandidate(
+              candidate
+            )
+          );
+
+      } catch (error) {
+
+        console.error(
+          "ICE candidate error:",
+          error
+        );
+
+      }
+
+    }
+  );
+
+
+  // --------------------------------------------
+  // CALL STATUS
+  // --------------------------------------------
+
+  onValue(
+    ref(
+      db,
+      "calls/" +
+      roomId +
+      "/status"
+    ),
+    (snapshot) => {
+
+      const callStatus =
+        snapshot.val();
+
+
+      if (
+        callStatus ===
+        "ended"
+      ) {
+
+        stopVoiceCall(
+          false
+        );
+
+        setStatus(
+          "Status: Voice call ended"
+        );
+
+      }
+
+    }
+  );
+
+
+  console.log(
+    "Voice signaling ready:",
+    callRef.toString()
+  );
+
+}
+
+
+// ======================================================
+// PREPARE WEBRTC
+// ======================================================
+
+async function preparePeerConnection() {
+
+  if (peerConnection) {
+    return peerConnection;
+  }
+
+
+  createRemoteAudio();
+
+
+  peerConnection =
+    new RTCPeerConnection(
+      rtcConfig
+    );
+
+
+  // --------------------------------------------
+  // REMOTE AUDIO
+  // --------------------------------------------
+
+  peerConnection.ontrack =
+    (event) => {
+
+      if (
+        remoteAudio &&
+        event.streams &&
+        event.streams[0]
+      ) {
+
+        remoteAudio.srcObject =
+          event.streams[0];
+
+
+        remoteAudio
+          .play()
+          .catch(
+            (error) => {
+
+              console.log(
+                "Audio play waiting:",
+                error
+              );
+
+            }
+          );
+
+      }
+
+    };
+
+
+  // --------------------------------------------
+  // ICE CANDIDATE
+  // --------------------------------------------
+
+  peerConnection.onicecandidate =
+    async (event) => {
+
+      if (
+        !event.candidate ||
+        !roomId ||
+        !myId
+      ) {
+
+        return;
+
+      }
+
+
+      try {
+
+        await push(
+          ref(
+            db,
+            "calls/" +
+            roomId +
+            "/candidates/" +
+            myId
+          ),
+          event.candidate.toJSON()
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Send ICE error:",
+          error
+        );
+
+      }
+
+    };
+
+
+  // --------------------------------------------
+  // CONNECTION STATE
+  // --------------------------------------------
+
+  peerConnection.onconnectionstatechange =
+    () => {
+
+      console.log(
+        "Voice connection:",
+        peerConnection.connectionState
+      );
+
+
+      if (
+        peerConnection.connectionState ===
+        "connected"
+      ) {
+
+        voiceCallActive =
+          true;
+
+
+        setStatus(
+          "📞 Voice call connected"
+        );
+
+      }
+
+
+      if (
+        peerConnection.connectionState ===
+        "disconnected" ||
+        peerConnection.connectionState ===
+        "failed"
+      ) {
+
+        setStatus(
+          "📞 Voice connection lost"
+        );
+
+      }
+
+    };
+
+
+  // --------------------------------------------
+  // ADD LOCAL AUDIO
+  // --------------------------------------------
+
+  if (!localStream) {
+
+    localStream =
+      await navigator.mediaDevices
+        .getUserMedia({
+          audio: true,
+          video: false
+        });
+
+  }
+
+
+  localStream
+    .getTracks()
+    .forEach(
+      (track) => {
+
+        peerConnection.addTrack(
+          track,
+          localStream
+        );
+
+      }
+    );
+
+
+  return peerConnection;
+
+}
+
+
+// ======================================================
+// START VOICE CALL
+// ======================================================
+
+async function startVoiceCall() {
+
+  if (!roomId) {
+
+    alert(
+      "Pehle stranger se connect ho."
+    );
+
+    return;
+
+  }
+
+
+  if (!partnerId) {
+
+    alert(
+      "Partner information missing."
+    );
+
+    return;
+
+  }
+
+
+  if (
+    !navigator.mediaDevices ||
+    !navigator.mediaDevices.getUserMedia
+  ) {
+
+    alert(
+      "Microphone/WebRTC browser mein available nahi hai."
+    );
+
+    return;
+
+  }
+
+
+  try {
+
+    createRemoteAudio();
+
+
+    // ------------------------------------------
+    // MICROPHONE
+    // ------------------------------------------
+
+    if (!localStream) {
+
+      localStream =
+        await navigator.mediaDevices
+          .getUserMedia({
+            audio: true,
+            video: false
+          });
+
+    }
+
+
+    // ------------------------------------------
+    // PEER CONNECTION
+    // ------------------------------------------
+
+    await preparePeerConnection();
+
+
+    // ------------------------------------------
+    // RESET OLD CALL SIGNALING
+    // ------------------------------------------
+
+    await remove(
+      ref(
+        db,
+        "calls/" +
+        roomId +
+        "/offer"
+      )
+    );
+
+
+    await remove(
+      ref(
+        db,
+        "calls/" +
+        roomId +
+        "/answer"
+      )
+    );
+
+
+    await remove(
+      ref(
+        db,
+        "calls/" +
+        roomId +
+        "/candidates/" +
+        myId
+      )
+    );
+
+
+    await remove(
+      ref(
+        db,
+        "calls/" +
+        roomId +
+        "/candidates/" +
+        partnerId
+      )
+    );
+
+
+    await set(
+      ref(
+        db,
+        "calls/" +
+        roomId +
+        "/status"
+      ),
+      "calling"
+    );
+
+
+    // ------------------------------------------
+    // DETERMINISTIC CALLER
+    // ------------------------------------------
+
+    const iAmCaller =
+      String(myId) <
+      String(partnerId);
+
+
+    if (iAmCaller) {
+
+      // ----------------------------------------
+      // CREATE OFFER
+      // ----------------------------------------
+
+      const offer =
+        await peerConnection
+          .createOffer();
+
+
+      await peerConnection
+        .setLocalDescription(
+          offer
+        );
+
+
+      await set(
+        ref(
+          db,
+          "calls/" +
+          roomId +
+          "/offer"
+        ),
+        {
+          type:
+            offer.type,
+
+          sdp:
+            offer.sdp
+        }
+      );
+
+
+      setStatus(
+        "📞 Calling " +
+        partnerUsername +
+        "..."
+      );
+
+    } else {
+
+      setStatus(
+        "📞 Waiting for voice connection..."
+      );
+
+    }
+
+  } catch (error) {
+
+    console.error(
+      "VOICE CALL ERROR:",
+      error
+    );
+
+
+    if (
+      error.name ===
+      "NotAllowedError"
+    ) {
+
+      alert(
+        "Microphone permission denied.\n\n" +
+        "Browser settings mein microphone permission Allow karo."
+      );
+
+    } else {
+
+      alert(
+        "Voice call error:\n" +
+        error.message
+      );
+
+    }
+
+  }
+
+}
+
+
+// ======================================================
+// MUTE / UNMUTE
+// ======================================================
+
+function toggleMute() {
+
+  if (!localStream) {
+
+    alert(
+      "Pehle Start Voice dabao."
+    );
+
+    return;
+
+  }
+
+
+  const audioTracks =
+    localStream.getAudioTracks();
+
+
+  if (
+    audioTracks.length === 0
+  ) {
+
+    return;
+
+  }
+
+
+  isMuted =
+    !isMuted;
+
+
+  audioTracks.forEach(
+    (track) => {
+
+      track.enabled =
+        !isMuted;
+
+    }
+  );
+
+
+  if (muteBtn) {
+
+    muteBtn.innerText =
+      isMuted
+        ? "🔊 Unmute"
+        : "🔇 Mute";
+
+  }
+
+
+  setStatus(
+    isMuted
+      ? "🔇 Microphone muted"
+      : "🎙️ Microphone on"
+  );
+
+}
+
+
+// ======================================================
+// END VOICE CALL
+// ======================================================
+
+async function endVoiceCall() {
+
+  if (!roomId) {
+
+    stopVoiceCall(
+      false
+    );
+
+    return;
+
+  }
+
+
+  try {
+
+    await set(
+      ref(
+        db,
+        "calls/" +
+        roomId +
+        "/status"
+      ),
+      "ended"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "End call signaling error:",
+      error
+    );
+
+  }
+
+
+  stopVoiceCall(
+    false
+  );
+
+
+  setStatus(
+    "Status: Voice call ended"
+  );
+
+}
+
+
+// ======================================================
+// STOP VOICE CALL
+// ======================================================
+
+function stopVoiceCall(
+  notifyFirebase = false
+) {
+
+  // --------------------------------------------
+  // STOP MICROPHONE
+  // --------------------------------------------
+
+  if (localStream) {
+
+    localStream
+      .getTracks()
+      .forEach(
+        (track) => {
+
+          track.stop();
+
+        }
+      );
+
+    localStream =
+      null;
+
+  }
+
+
+  // --------------------------------------------
+  // CLOSE PEER
+  // --------------------------------------------
+
+  if (peerConnection) {
+
+    try {
+
+      peerConnection.close();
+
+    } catch (error) {
+
+      console.error(error);
+
+    }
+
+    peerConnection =
+      null;
+
+  }
+
+
+  // --------------------------------------------
+  // STOP REMOTE AUDIO
+  // --------------------------------------------
+
+  if (remoteAudio) {
+
+    remoteAudio.srcObject =
+      null;
+
+  }
+
+
+  voiceCallActive =
+    false;
+
+  isMuted =
+    false;
+
+
+  if (muteBtn) {
+
+    muteBtn.innerText =
+      "🔇 Mute";
+
+  }
+
+
+  // --------------------------------------------
+  // OPTIONAL FIREBASE STATUS
+  // --------------------------------------------
+
+  if (
+    notifyFirebase &&
+    roomId
+  ) {
+
+    set(
+      ref(
+        db,
+        "calls/" +
+        roomId +
+        "/status"
+      ),
+      "ended"
+    );
+
+  }
 
 }
 
@@ -1185,18 +2056,51 @@ async function disconnectChat() {
     roomId;
 
 
-  console.log(
-    "Disconnecting:",
-    oldId,
-    oldRoom
+  // --------------------------------------------
+  // END VOICE
+  // --------------------------------------------
+
+  if (
+    oldRoom &&
+    db
+  ) {
+
+    try {
+
+      await set(
+        ref(
+          db,
+          "calls/" +
+          oldRoom +
+          "/status"
+        ),
+        "ended"
+      );
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+    }
+
+  }
+
+
+  stopVoiceCall(
+    false
   );
 
 
   // --------------------------------------------
-  // REMOVE WAITING USER
+  // REMOVE WAITING
   // --------------------------------------------
 
-  if (oldId && db) {
+  if (
+    oldId &&
+    db
+  ) {
 
     try {
 
@@ -1211,7 +2115,6 @@ async function disconnectChat() {
     } catch (error) {
 
       console.error(
-        "Waiting remove error:",
         error
       );
 
@@ -1219,7 +2122,7 @@ async function disconnectChat() {
 
 
     // ------------------------------------------
-    // REMOVE ONLINE USER
+    // REMOVE ONLINE
     // ------------------------------------------
 
     try {
@@ -1235,9 +2138,37 @@ async function disconnectChat() {
     } catch (error) {
 
       console.error(
-        "Online remove error:",
         error
       );
+
+    }
+
+
+    // ------------------------------------------
+    // REMOVE ROOM PRESENCE
+    // ------------------------------------------
+
+    if (oldRoom) {
+
+      try {
+
+        await remove(
+          ref(
+            db,
+            "rooms/" +
+            oldRoom +
+            "/users/" +
+            oldId
+          )
+        );
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+      }
 
     }
 
@@ -1245,40 +2176,7 @@ async function disconnectChat() {
 
 
   // --------------------------------------------
-  // DISCONNECT ROOM
-  // --------------------------------------------
-
-  if (
-    oldRoom &&
-    db
-  ) {
-
-    try {
-
-      await set(
-        ref(
-          db,
-          "rooms/" +
-          oldRoom +
-          "/status"
-        ),
-        "disconnected"
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Room disconnect error:",
-        error
-      );
-
-    }
-
-  }
-
-
-  // --------------------------------------------
-  // RESET VARIABLES
+  // RESET
   // --------------------------------------------
 
   myId =
@@ -1287,11 +2185,17 @@ async function disconnectChat() {
   roomId =
     null;
 
-  isSearching =
-    false;
+  partnerId =
+    null;
+
+  partnerUsername =
+    null;
 
   myUsername =
     null;
+
+  isSearching =
+    false;
 
   messageListenerStarted =
     false;
@@ -1299,10 +2203,18 @@ async function disconnectChat() {
   onlineListenerStarted =
     false;
 
+  roomPresenceStarted =
+    false;
 
-  // --------------------------------------------
-  // CLEAR CHAT
-  // --------------------------------------------
+  callListenersStarted =
+    false;
+
+  partnerWasOnline =
+    false;
+
+  disconnectHandled =
+    false;
+
 
   if (chatBox) {
 
@@ -1324,11 +2236,6 @@ async function disconnectChat() {
 // ======================================================
 
 async function nextStranger() {
-
-  console.log(
-    "NEXT STRANGER CLICKED"
-  );
-
 
   await disconnectChat();
 
@@ -1385,6 +2292,40 @@ if (sendBtn) {
 
 
 // ======================================================
+// VOICE BUTTONS
+// ======================================================
+
+if (startVoiceBtn) {
+
+  startVoiceBtn.addEventListener(
+    "click",
+    startVoiceCall
+  );
+
+}
+
+
+if (muteBtn) {
+
+  muteBtn.addEventListener(
+    "click",
+    toggleMute
+  );
+
+}
+
+
+if (endVoiceBtn) {
+
+  endVoiceBtn.addEventListener(
+    "click",
+    endVoiceCall
+  );
+
+}
+
+
+// ======================================================
 // ENTER TO SEND
 // ======================================================
 
@@ -1411,5 +2352,41 @@ if (msgInput) {
 
 
 // ======================================================
-// INITIAL STATUS
-// =============================================
+// INITIAL
+// ======================================================
+
+createRemoteAudio();
+
+
+setStatus(
+  "Status: Ready"
+);
+
+
+console.log(
+  "================================"
+);
+
+console.log(
+  "TALK TO SMILE LOADED"
+);
+
+console.log(
+  "Random Chat: ON"
+);
+
+console.log(
+  "Text Chat: ON"
+);
+
+console.log(
+  "Disconnect Detection: ON"
+);
+
+console.log(
+  "WebRTC Voice Call: ON"
+);
+
+console.log(
+  "================================"
+);
