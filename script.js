@@ -1,6 +1,12 @@
 // ======================================================
-// TALK TO SMILE - BASIC WORKING SCRIPT
-// Custom Username + Random Chat + Text Chat
+// TALK TO SMILE
+// Random Chat + Custom Username + Text Chat
+// Firebase Realtime Database
+// ======================================================
+
+
+// ======================================================
+// FIREBASE IMPORTS
 // ======================================================
 
 import { initializeApp } from
@@ -24,22 +30,59 @@ import {
 // ======================================================
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
-  authDomain: "talktosmile-16bca.firebaseapp.com",
-  databaseURL: "https://talktosmile-16bca-default-rtdb.firebaseio.com",
-  projectId: "talktosmile-16bca",
-  storageBucket: "talktosmile-16bca.appspot.com",
-  messagingSenderId: "550139117184",
-  appId: "1:550139117184:web:c354dce8e28c8e2144f065"
+
+  apiKey:
+    "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
+
+  authDomain:
+    "talktosmile-16bca.firebaseapp.com",
+
+  databaseURL:
+    "https://talktosmile-16bca-default-rtdb.firebaseio.com",
+
+  projectId:
+    "talktosmile-16bca",
+
+  storageBucket:
+    "talktosmile-16bca.appspot.com",
+
+  messagingSenderId:
+    "550139117184",
+
+  appId:
+    "1:550139117184:web:c354dce8e28c8e2144f065"
+
 };
 
 
 // ======================================================
-// FIREBASE
+// INITIALIZE FIREBASE
 // ======================================================
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+let app;
+let db;
+
+try {
+
+  app = initializeApp(firebaseConfig);
+
+  db = getDatabase(app);
+
+  console.log("Firebase initialized successfully");
+
+} catch (error) {
+
+  console.error(
+    "Firebase initialization error:",
+    error
+  );
+
+  alert(
+    "Firebase initialization error:\n" +
+    error.message
+  );
+
+}
 
 
 // ======================================================
@@ -47,9 +90,16 @@ const db = getDatabase(app);
 // ======================================================
 
 let myId = null;
+
 let myUsername = null;
+
 let roomId = null;
+
 let isSearching = false;
+
+let messageListenerStarted = false;
+
+let onlineListenerStarted = false;
 
 
 // ======================================================
@@ -88,30 +138,34 @@ const onlineCount =
 function setStatus(text) {
 
   if (status) {
+
     status.innerText = text;
+
   }
 
 }
 
 
 // ======================================================
-// USER ID
+// CREATE USER ID
 // ======================================================
 
 function createUserId() {
 
-  return "user_" +
+  return (
+    "user_" +
     Date.now() +
     "_" +
     Math.random()
       .toString(36)
-      .substring(2, 8);
+      .substring(2, 10)
+  );
 
 }
 
 
 // ======================================================
-// USERNAME
+// GET USERNAME
 // ======================================================
 
 function getUsername() {
@@ -119,9 +173,12 @@ function getUsername() {
   let username = "";
 
   if (usernameInput) {
+
     username =
       usernameInput.value.trim();
+
   }
+
 
   if (!username) {
 
@@ -133,15 +190,86 @@ function getUsername() {
 
   }
 
+
   username =
     username.substring(0, 20);
 
+
   if (usernameInput) {
+
     usernameInput.value =
       username;
+
   }
 
+
   return username;
+
+}
+
+
+// ======================================================
+// FIREBASE ERROR HANDLER
+// ======================================================
+
+function showFirebaseError(
+  location,
+  error
+) {
+
+  console.error(
+    "================================"
+  );
+
+  console.error(
+    "FIREBASE ERROR"
+  );
+
+  console.error(
+    "Location:",
+    location
+  );
+
+  console.error(
+    "Code:",
+    error?.code
+  );
+
+  console.error(
+    "Message:",
+    error?.message
+  );
+
+  console.error(
+    "Full error:",
+    error
+  );
+
+  console.error(
+    "================================"
+  );
+
+
+  const code =
+    error?.code ||
+    "UNKNOWN_ERROR";
+
+  const message =
+    error?.message ||
+    "Unknown Firebase error";
+
+
+  alert(
+    "Firebase Error\n\n" +
+    "Location: " +
+    location +
+    "\n\n" +
+    "Code: " +
+    code +
+    "\n\n" +
+    "Message: " +
+    message
+  );
 
 }
 
@@ -152,7 +280,37 @@ function getUsername() {
 
 function startOnlineCounter() {
 
-  if (!myId) return;
+  if (!db) {
+
+    console.error(
+      "Database not initialized"
+    );
+
+    return;
+
+  }
+
+
+  if (!myId) {
+
+    console.error(
+      "Cannot start online counter: no user ID"
+    );
+
+    return;
+
+  }
+
+
+  if (onlineListenerStarted) {
+
+    return;
+
+  }
+
+
+  onlineListenerStarted =
+    true;
 
 
   const myOnlineRef =
@@ -169,13 +327,31 @@ function startOnlineCounter() {
     );
 
 
+  // --------------------------------------------
+  // CONNECTION STATUS
+  // --------------------------------------------
+
   onValue(
     connectedRef,
     async (snapshot) => {
 
-      if (snapshot.val() !== true) {
+      if (
+        snapshot.val() !== true
+      ) {
+
+        console.log(
+          "Firebase not connected yet"
+        );
+
         return;
+
       }
+
+
+      console.log(
+        "Firebase connected"
+      );
+
 
       try {
 
@@ -189,14 +365,16 @@ function startOnlineCounter() {
           }
         );
 
+
         onDisconnect(
           myOnlineRef
         ).remove();
 
+
       } catch (error) {
 
-        console.error(
-          "Online error:",
+        showFirebaseError(
+          "onlineUsers",
           error
         );
 
@@ -205,6 +383,10 @@ function startOnlineCounter() {
     }
   );
 
+
+  // --------------------------------------------
+  // ONLINE USER COUNT
+  // --------------------------------------------
 
   onValue(
     ref(
@@ -216,15 +398,27 @@ function startOnlineCounter() {
       const users =
         snapshot.val();
 
+
       const count =
         users
           ? Object.keys(users).length
           : 0;
 
+
       if (onlineCount) {
+
         onlineCount.innerText =
           count;
+
       }
+
+    },
+    (error) => {
+
+      showFirebaseError(
+        "onlineUsers listener",
+        error
+      );
 
     }
   );
@@ -238,7 +432,20 @@ function startOnlineCounter() {
 
 async function startChat() {
 
-  console.log("START BUTTON CLICKED");
+  console.log(
+    "START BUTTON CLICKED"
+  );
+
+
+  if (!db) {
+
+    alert(
+      "Firebase database is not initialized."
+    );
+
+    return;
+
+  }
 
 
   if (isSearching) {
@@ -276,18 +483,39 @@ async function startChat() {
     true;
 
 
+  messageListenerStarted =
+    false;
+
+
+  onlineListenerStarted =
+    false;
+
+
   setStatus(
     "Status: Waiting for stranger..."
   );
 
 
   if (chatBox) {
+
     chatBox.innerHTML = "";
+
   }
 
 
+  console.log(
+    "My ID:",
+    myId
+  );
+
+  console.log(
+    "My Username:",
+    myUsername
+  );
+
+
   // --------------------------------------------
-  // ONLINE
+  // START ONLINE COUNTER
   // --------------------------------------------
 
   startOnlineCounter();
@@ -307,42 +535,53 @@ async function startChat() {
 
 
     // ------------------------------------------
-    // ADD TO WAITING
+    // ADD USER TO WAITING
+    // IMPORTANT:
+    // No null values
     // ------------------------------------------
 
     await set(
       myWaitingRef,
       {
         id: myId,
-        username: myUsername,
-        roomId: null,
-        partnerUsername: null
+        username: myUsername
       }
     );
 
 
     console.log(
-      "Added to waiting:",
+      "Added to waiting successfully:",
       myId
     );
 
 
     // ------------------------------------------
-    // REMOVE WHEN CONNECTION CLOSES
+    // REMOVE WHEN DISCONNECTED
     // ------------------------------------------
 
-    onDisconnect(
-      myWaitingRef
-    ).remove();
+    try {
+
+      await onDisconnect(
+        myWaitingRef
+      ).remove();
+
+    } catch (error) {
+
+      console.error(
+        "onDisconnect waiting error:",
+        error
+      );
+
+    }
 
 
     // ------------------------------------------
-    // LISTEN TO OUR USER
+    // LISTEN TO OUR WAITING NODE
     // ------------------------------------------
 
     onValue(
       myWaitingRef,
-      (snapshot) => {
+      async (snapshot) => {
 
         const data =
           snapshot.val();
@@ -355,17 +594,23 @@ async function startChat() {
 
 
         if (!data) {
+
           return;
+
         }
 
 
         if (!data.roomId) {
+
           return;
+
         }
 
 
         if (roomId) {
+
           return;
+
         }
 
 
@@ -377,6 +622,10 @@ async function startChat() {
           data.roomId;
 
 
+        isSearching =
+          false;
+
+
         setStatus(
           "Status: Connected with " +
           (
@@ -386,15 +635,17 @@ async function startChat() {
         );
 
 
-        isSearching =
-          false;
+        console.log(
+          "ROOM CONNECTED:",
+          roomId
+        );
 
 
         // ------------------------------------
         // ROOM STATUS
         // ------------------------------------
 
-        awaitSetRoomStatus();
+        await setRoomStatus();
 
 
         // ------------------------------------
@@ -405,11 +656,30 @@ async function startChat() {
 
 
         // ------------------------------------
-        // REMOVE WAITING
+        // REMOVE FROM WAITING
         // ------------------------------------
 
-        remove(
-          myWaitingRef
+        try {
+
+          await remove(
+            myWaitingRef
+          );
+
+        } catch (error) {
+
+          console.error(
+            "Remove waiting error:",
+            error
+          );
+
+        }
+
+      },
+      (error) => {
+
+        showFirebaseError(
+          "waiting listener",
+          error
         );
 
       }
@@ -446,9 +716,9 @@ async function startChat() {
     );
 
 
-    alert(
-      "Firebase error: " +
-      error.message
+    showFirebaseError(
+      "startChat / waiting",
+      error
     );
 
   }
@@ -460,9 +730,12 @@ async function startChat() {
 // SET ROOM STATUS
 // ======================================================
 
-async function awaitSetRoomStatus() {
+async function setRoomStatus() {
+
+  if (!db) return;
 
   if (!roomId) return;
+
 
   try {
 
@@ -476,10 +749,17 @@ async function awaitSetRoomStatus() {
       "connected"
     );
 
+
+    console.log(
+      "Room status set:",
+      roomId
+    );
+
+
   } catch (error) {
 
-    console.error(
-      "Room status error:",
+    showFirebaseError(
+      "rooms/status",
       error
     );
 
@@ -494,6 +774,13 @@ async function awaitSetRoomStatus() {
 
 async function findMatch() {
 
+  if (!db) {
+
+    return;
+
+  }
+
+
   console.log(
     "Looking for stranger..."
   );
@@ -506,123 +793,158 @@ async function findMatch() {
     );
 
 
-  await runTransaction(
-    waitingRef,
-    (currentData) => {
+  try {
 
-      if (!currentData) {
+    await runTransaction(
+      waitingRef,
+      (currentData) => {
 
-        return currentData;
+        // ------------------------------------
+        // NO USERS
+        // ------------------------------------
 
-      }
+        if (!currentData) {
 
+          return currentData;
 
-      const users =
-        Object.values(
-          currentData
-        );
-
-
-      const availableUsers =
-        users.filter(
-          (user) => {
-
-            return (
-              user &&
-              user.id &&
-              user.id !== myId &&
-              !user.roomId
-            );
-
-          }
-        );
+        }
 
 
-      if (
-        availableUsers.length === 0
-      ) {
+        // ------------------------------------
+        // GET USERS
+        // ------------------------------------
+
+        const users =
+          Object.values(
+            currentData
+          );
+
+
+        // ------------------------------------
+        // FIND AVAILABLE USERS
+        // ------------------------------------
+
+        const availableUsers =
+          users.filter(
+            (user) => {
+
+              return (
+                user &&
+                user.id &&
+                user.id !== myId &&
+                !user.roomId
+              );
+
+            }
+          );
+
+
+        // ------------------------------------
+        // NO STRANGER
+        // ------------------------------------
+
+        if (
+          availableUsers.length === 0
+        ) {
+
+          console.log(
+            "No stranger found."
+          );
+
+          return currentData;
+
+        }
+
+
+        // ------------------------------------
+        // RANDOM STRANGER
+        // ------------------------------------
+
+        const stranger =
+          availableUsers[
+            Math.floor(
+              Math.random() *
+              availableUsers.length
+            )
+          ];
+
+
+        // ------------------------------------
+        // SAFETY CHECK
+        // ------------------------------------
+
+        if (
+          !currentData[myId] ||
+          !currentData[stranger.id]
+        ) {
+
+          return currentData;
+
+        }
+
+
+        // ------------------------------------
+        // CREATE ROOM
+        // ------------------------------------
+
+        const newRoomId =
+          "room_" +
+          Date.now() +
+          "_" +
+          Math.random()
+            .toString(36)
+            .substring(2, 8);
+
+
+        // ------------------------------------
+        // MY DATA
+        // ------------------------------------
+
+        currentData[myId].roomId =
+          newRoomId;
+
+        currentData[myId].partnerUsername =
+          stranger.username ||
+          "Stranger";
+
+
+        // ------------------------------------
+        // STRANGER DATA
+        // ------------------------------------
+
+        currentData[stranger.id].roomId =
+          newRoomId;
+
+        currentData[stranger.id].partnerUsername =
+          myUsername ||
+          "Stranger";
+
 
         console.log(
-          "No stranger found."
+          "MATCH CREATED:",
+          newRoomId
         );
 
-        return currentData;
-
-      }
-
-
-      // ----------------------------------------
-      // RANDOM STRANGER
-      // ----------------------------------------
-
-      const stranger =
-        availableUsers[
-          Math.floor(
-            Math.random() *
-            availableUsers.length
-          )
-        ];
-
-
-      if (
-        !currentData[myId] ||
-        !currentData[stranger.id]
-      ) {
 
         return currentData;
 
       }
+    );
 
 
-      // ----------------------------------------
-      // CREATE ROOM
-      // ----------------------------------------
-
-      const newRoomId =
-        "room_" +
-        Date.now() +
-        "_" +
-        Math.random()
-          .toString(36)
-          .substring(2, 8);
+    console.log(
+      "Match transaction completed"
+    );
 
 
-      // ----------------------------------------
-      // ME
-      // ----------------------------------------
+  } catch (error) {
 
-      currentData[myId].roomId =
-        newRoomId;
+    showFirebaseError(
+      "waiting transaction",
+      error
+    );
 
-      currentData[myId]
-        .partnerUsername =
-        stranger.username ||
-        "Stranger";
-
-
-      // ----------------------------------------
-      // STRANGER
-      // ----------------------------------------
-
-      currentData[stranger.id].roomId =
-        newRoomId;
-
-      currentData[stranger.id]
-        .partnerUsername =
-        myUsername ||
-        "Stranger";
-
-
-      console.log(
-        "MATCH CREATED:",
-        newRoomId
-      );
-
-
-      return currentData;
-
-    }
-  );
+  }
 
 }
 
@@ -633,14 +955,29 @@ async function findMatch() {
 
 async function sendMessage() {
 
-  if (!msgInput) return;
+  if (!db) {
+
+    return;
+
+  }
+
+
+  if (!msgInput) {
+
+    return;
+
+  }
 
 
   const message =
     msgInput.value.trim();
 
 
-  if (!message) return;
+  if (!message) {
+
+    return;
+
+  }
 
 
   if (!roomId) {
@@ -659,7 +996,8 @@ async function sendMessage() {
     await push(
       ref(
         db,
-        "messages/" + roomId
+        "messages/" +
+        roomId
       ),
       {
         text: message,
@@ -670,14 +1008,17 @@ async function sendMessage() {
     );
 
 
-    msgInput.value = "";
+    msgInput.value =
+      "";
+
 
     msgInput.focus();
 
+
   } catch (error) {
 
-    console.error(
-      "Message error:",
+    showFirebaseError(
+      "messages",
       error
     );
 
@@ -692,11 +1033,39 @@ async function sendMessage() {
 
 function listenMessages() {
 
-  if (!roomId) return;
+  if (!db) {
+
+    return;
+
+  }
+
+
+  if (!roomId) {
+
+    return;
+
+  }
+
+
+  if (messageListenerStarted) {
+
+    return;
+
+  }
+
+
+  messageListenerStarted =
+    true;
 
 
   const currentRoom =
     roomId;
+
+
+  console.log(
+    "Listening to messages:",
+    currentRoom
+  );
 
 
   onValue(
@@ -716,10 +1085,15 @@ function listenMessages() {
       }
 
 
-      if (!chatBox) return;
+      if (!chatBox) {
+
+        return;
+
+      }
 
 
-      chatBox.innerHTML = "";
+      chatBox.innerHTML =
+        "";
 
 
       const messages =
@@ -727,7 +1101,9 @@ function listenMessages() {
 
 
       if (!messages) {
+
         return;
+
       }
 
 
@@ -782,6 +1158,14 @@ function listenMessages() {
       chatBox.scrollTop =
         chatBox.scrollHeight;
 
+    },
+    (error) => {
+
+      showFirebaseError(
+        "messages listener",
+        error
+      );
+
     }
   );
 
@@ -789,7 +1173,7 @@ function listenMessages() {
 
 
 // ======================================================
-// DISCONNECT
+// DISCONNECT CHAT
 // ======================================================
 
 async function disconnectChat() {
@@ -801,7 +1185,18 @@ async function disconnectChat() {
     roomId;
 
 
-  if (oldId) {
+  console.log(
+    "Disconnecting:",
+    oldId,
+    oldRoom
+  );
+
+
+  // --------------------------------------------
+  // REMOVE WAITING USER
+  // --------------------------------------------
+
+  if (oldId && db) {
 
     try {
 
@@ -815,10 +1210,17 @@ async function disconnectChat() {
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "Waiting remove error:",
+        error
+      );
 
     }
 
+
+    // ------------------------------------------
+    // REMOVE ONLINE USER
+    // ------------------------------------------
 
     try {
 
@@ -832,14 +1234,24 @@ async function disconnectChat() {
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "Online remove error:",
+        error
+      );
 
     }
 
   }
 
 
-  if (oldRoom) {
+  // --------------------------------------------
+  // DISCONNECT ROOM
+  // --------------------------------------------
+
+  if (
+    oldRoom &&
+    db
+  ) {
 
     try {
 
@@ -855,12 +1267,19 @@ async function disconnectChat() {
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "Room disconnect error:",
+        error
+      );
 
     }
 
   }
 
+
+  // --------------------------------------------
+  // RESET VARIABLES
+  // --------------------------------------------
 
   myId =
     null;
@@ -871,9 +1290,25 @@ async function disconnectChat() {
   isSearching =
     false;
 
+  myUsername =
+    null;
+
+  messageListenerStarted =
+    false;
+
+  onlineListenerStarted =
+    false;
+
+
+  // --------------------------------------------
+  // CLEAR CHAT
+  // --------------------------------------------
 
   if (chatBox) {
-    chatBox.innerHTML = "";
+
+    chatBox.innerHTML =
+      "";
+
   }
 
 
@@ -890,6 +1325,11 @@ async function disconnectChat() {
 
 async function nextStranger() {
 
+  console.log(
+    "NEXT STRANGER CLICKED"
+  );
+
+
   await disconnectChat();
 
 
@@ -900,7 +1340,9 @@ async function nextStranger() {
 
   setTimeout(
     () => {
+
       startChat();
+
     },
     500
   );
@@ -970,12 +1412,4 @@ if (msgInput) {
 
 // ======================================================
 // INITIAL STATUS
-// ======================================================
-
-console.log(
-  "Talk To Smile script loaded successfully."
-);
-
-setStatus(
-  "Status: Ready"
-);
+// =============================================
