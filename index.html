@@ -1,3 +1,4 @@
+lHTML
 
 <!DOCTYPE html>
 <html lang="en">
@@ -5,262 +6,524 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Talk To Smile - Free Random Chat with Strangers</title>
-  <meta name="description" content="Talk to strangers online through free random text and voice chat. No registration required.">
-  <meta name="keywords" content="TalkToSmile, random chat, talk to strangers, free voice chat, online text chat">
+  <title>TalkToSmile - Free Random Chat with Strangers</title>
+  <meta name="description" content="Meet new people with TalkToSmile. Enjoy free random text and voice chat online without registration.">
+  <meta name="keywords" content="TalkToSmile, random chat, stranger chat, free voice chat, online text chat">
   <meta name="robots" content="index, follow">
-  <meta name="theme-color" content="#030617">
-
-  <link rel="icon" href="logo.png" type="image/png">
+  <meta name="theme-color" content="#080d1b">
 
   <style>
     * {
+      margin: 0;
+      padding: 0;
       box-sizing: border-box;
     }
 
     body {
-      margin: 0;
-      padding: 25px 15px;
-      background: #030617;
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
+      min-height: 100vh;
+      padding: 18px;
+      color: #f8fafc;
+      background:
+        radial-gradient(ellipse at 50% -10%, #173b70 0%, transparent 45%),
+        #080d1b;
+      font-family: Inter, Arial, sans-serif;
     }
 
-    .container {
-      width: 100%;
-      max-width: 850px;
-      margin: auto;
-    }
-
-    .logo {
-      width: 190px;
-      height: auto;
-      object-fit: contain;
-      margin: 10px auto 35px;
-      display: block;
-    }
-
-    h1 {
-      color: #22d3ee;
-      font-size: clamp(28px, 5vw, 44px);
-      line-height: 1.25;
-      margin: 25px 0;
-    }
-
-    .description {
-      color: #cbd5e1;
-      font-size: clamp(18px, 3vw, 28px);
-      line-height: 1.7;
-      margin: 35px 0 45px;
-    }
-
-    #usernameInput {
-      width: 95%;
-      max-width: 750px;
-      padding: 25px;
-      border-radius: 30px;
-      border: 1px solid #cbd5e1;
-      background: white;
-      color: #111827;
-      font-size: 25px;
-      outline: none;
-      margin-bottom: 30px;
-    }
-
-    .online {
-      display: inline-block;
-      padding: 22px 35px;
-      border-radius: 50px;
-      background: #111827;
-      color: #4ade80;
-      font-size: 25px;
-      font-weight: bold;
-      margin: 0 0 35px;
-    }
-
-    #status {
-      color: #94a3b8;
-      font-size: 25px;
-      margin: 20px 0 55px;
-      min-height: 32px;
-    }
-
-    .buttons {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 18px;
-      margin-bottom: 25px;
+    button, input {
+      font: inherit;
     }
 
     button {
-      border: none;
-      border-radius: 28px;
-      padding: 22px 28px;
-      background: #0ea5e9;
-      color: white;
-      font-size: 23px;
       cursor: pointer;
-      min-height: 78px;
     }
 
-    button:active {
+    .container {
+      max-width: 1050px;
+      margin: auto;
+    }
+
+    /* HEADER */
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 5px 22px;
+      border-bottom: 1px solid #25334e;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 25px;
+      font-weight: 850;
+      letter-spacing: -1px;
+    }
+
+    .brand img {
+      width: 43px;
+      height: 43px;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+
+    .brand span {
+      color: #22d3ee;
+    }
+
+    .free-label {
+      padding: 8px 15px;
+      color: #86efac;
+      background: #123326;
+      border: 1px solid #22543d;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    /* HERO */
+
+    .hero {
+      padding: 65px 12px 35px;
+      text-align: center;
+    }
+
+    .hero-tag {
+      display: inline-block;
+      padding: 9px 18px;
+      margin-bottom: 24px;
+      color: #67e8f9;
+      background: #10243c;
+      border: 1px solid #164e63;
+      border-radius: 30px;
+      font-size: 13px;
+    }
+
+    h1 {
+      max-width: 850px;
+      margin: auto;
+      font-size: clamp(35px, 6vw, 62px);
+      font-weight: 900;
+      line-height: 1.12;
+      letter-spacing: -2px;
+    }
+
+    h1 span {
+      color: #22d3ee;
+    }
+
+    .hero p {
+      max-width: 650px;
+      margin: 22px auto 0;
+      color: #a8b6ce;
+      font-size: 17px;
+      line-height: 1.8;
+    }
+
+    /* CHAT CARD */
+
+    .chat-card {
+      max-width: 820px;
+      margin: 20px auto;
+      padding: 30px;
+      background: rgba(18, 29, 51, .85);
+      border: 1px solid rgba(148, 163, 184, .18);
+      border-radius: 28px;
+      box-shadow: 0 25px 90px rgba(0, 0, 0, .35);
+      backdrop-filter: blur(20px);
+    }
+
+    .field-label {
+      display: block;
+      margin: 0 0 11px 4px;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    #usernameInput {
+      width: 100%;
+      height: 58px;
+      padding: 0 18px;
+      color: white;
+      background: #080f20;
+      border: 1px solid #344966;
+      border-radius: 14px;
+      outline: none;
+      font-size: 16px;
+    }
+
+    #usernameInput:focus,
+    #msgInput:focus {
+      border-color: #22d3ee;
+      box-shadow: 0 0 0 3px rgba(34, 211, 238, .1);
+    }
+
+    /* ONLINE STATUS */
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin: 25px 0;
+    }
+
+    .online-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 17px;
+      color: #86efac;
+      background: rgba(22, 101, 52, .15);
+      border: 1px solid rgba(74, 222, 128, .2);
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .online-dot {
+      width: 9px;
+      height: 9px;
+      background: #4ade80;
+      border-radius: 50%;
+      box-shadow: 0 0 13px #4ade80;
+    }
+
+    #status {
+      color: #93c5fd;
+      font-size: 14px;
+      text-align: right;
+    }
+
+    /* BUTTONS */
+
+    .button-group {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .btn {
+      min-height: 54px;
+      padding: 0 22px;
+      border: 1px solid transparent;
+      border-radius: 14px;
+      color: white;
+      font-size: 14px;
+      font-weight: 800;
+      transition: .2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.15);
+    }
+
+    .btn:active {
       transform: scale(.97);
     }
 
-    button:disabled {
-      opacity: .55;
-      cursor: not-allowed;
+    .primary {
+      background: linear-gradient(135deg, #0891b2, #2563eb);
+      box-shadow: 0 8px 25px rgba(37, 99, 235, .23);
     }
 
-    #startBtn {
-      background: #0284c7;
+    .next {
+      background: linear-gradient(135deg, #0e7490, #0891b2);
     }
 
-    #disconnectBtn {
-      background: #dc2626;
+    .danger {
+      background: linear-gradient(135deg, #dc2626, #991b1b);
     }
 
-    #voiceBtn, #muteBtn, #endVoiceBtn {
-      background: #0ea5e9;
+    .voice {
+      color: #bae6fd;
+      background: #182d4c;
+      border: 1px solid #34557e;
+    }
+
+    /* CHAT WINDOW */
+
+    .chat-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin: 30px 0 13px;
+      color: #e2e8f0;
+      font-size: 16px;
+      font-weight: 750;
+    }
+
+    .chat-heading small {
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 400;
     }
 
     #chatBox {
-      width: 95%;
-      max-width: 750px;
-      height: 420px;
-      margin: 35px auto 20px;
-      padding: 15px;
-      border: 1px solid #06b6d4;
-      border-radius: 25px;
+      height: 340px;
       overflow-y: auto;
+      padding: 18px;
+      background: #080f20;
+      border: 1px solid #263e60;
+      border-radius: 18px;
       text-align: left;
       overflow-wrap: anywhere;
     }
 
+    .chat-placeholder {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      color: #64748b;
+      text-align: center;
+    }
+
+    .chat-placeholder strong {
+      color: #cbd5e1;
+      font-size: 16px;
+    }
+
+    /* MESSAGE INPUT */
+
     .message-area {
       display: flex;
       gap: 10px;
-      width: 95%;
-      max-width: 750px;
-      margin: 0 auto 35px;
+      margin-top: 13px;
     }
 
     #msgInput {
       flex: 1;
       min-width: 0;
-      padding: 17px;
-      border-radius: 15px;
-      border: none;
-      font-size: 17px;
+      height: 54px;
+      padding: 0 16px;
+      color: white;
+      background: #080f20;
+      border: 1px solid #344966;
+      border-radius: 13px;
+      outline: none;
+      font-size: 15px;
     }
 
     #sendBtn {
-      min-height: auto;
-      padding: 15px 22px;
-      border-radius: 15px;
-      font-size: 18px;
+      height: 54px;
+      padding: 0 22px;
+      color: white;
+      background: linear-gradient(135deg, #0891b2, #2563eb);
+      border: none;
+      border-radius: 13px;
+      font-weight: 800;
     }
+
+    #remoteAudio {
+      display: none;
+    }
+
+    /* FOOTER */
 
     footer {
-      color: #94a3b8;
-      padding: 30px 10px;
-      font-size: 14px;
+      max-width: 820px;
+      margin: 35px auto 10px;
+      padding: 25px 10px;
+      border-top: 1px solid #25334e;
+      color: #71819c;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.8;
     }
 
-    @media(max-width: 500px) {
+    footer strong {
+      color: #22d3ee;
+    }
+
+    @media(max-width: 600px) {
       body {
-        padding: 15px 8px;
+        padding: 12px;
       }
 
-      button {
-        font-size: 19px;
-        padding: 18px 20px;
-        min-height: 65px;
-      }
-
-      .online {
+      .brand {
         font-size: 20px;
       }
 
+      .brand img {
+        width: 38px;
+        height: 38px;
+      }
+
+      .hero {
+        padding: 45px 5px 25px;
+      }
+
+      .hero p {
+        font-size: 15px;
+      }
+
+      .chat-card {
+        padding: 19px 14px;
+        border-radius: 21px;
+      }
+
+      .status-row {
+        justify-content: center;
+      }
+
       #status {
-        font-size: 21px;
+        width: 100%;
+        text-align: center;
+      }
+
+      .button-group {
+        gap: 9px;
+      }
+
+      .btn {
+        flex: 1 1 42%;
+        padding: 0 10px;
+        font-size: 13px;
       }
 
       #chatBox {
-        height: 350px;
+        height: 300px;
+      }
+
+      #sendBtn {
+        padding: 0 15px;
       }
     }
   </style>
 </head>
 
 <body>
-  <main class="container">
 
-    <img class="logo" src="logo.png" alt="Talk To Smile Logo">
+  <div class="container">
 
-    <h1>Talk To Smile - Free Random Chat with Strangers</h1>
+    <header>
+      <div class="brand">
+        <img src="logo.png" alt="TalkToSmile Logo"
+             onerror="this.style.display='none'">
+        TalkTo<span>Smile</span>
+      </div>
 
-    <p class="description">
-      Talk to strangers online through free random text and voice chat.
-      No registration required.
-    </p>
+      <div class="free-label">✦ FREE CHAT</div>
+    </header>
 
-    <input
-      type="text"
-      id="usernameInput"
-      placeholder="Enter your username"
-      maxlength="20"
-      autocomplete="off"
-    >
+    <section class="hero">
+      <div class="hero-tag">✦ Meet People • Make Friends</div>
 
-    <div class="online">
-      🟢 <span id="onlineCount">0</span> Users Online
-    </div>
+      <h1>
+        Your World. Your People.
+        <span>Just Start Talking.</span>
+      </h1>
 
-    <div id="status" role="status" aria-live="polite">
-      Status: Idle
-    </div>
+      <p>
+        Meet strangers, make new friends and enjoy free random
+        text and voice chat. No registration required.
+      </p>
+    </section>
 
-    <div class="buttons">
-      <button id="startBtn">🚀 Start Chat</button>
-      <button id="nextBtn">⏭️ Next Stranger</button>
-      <button id="disconnectBtn">❌ Disconnect</button>
-    </div>
+    <main class="chat-card">
 
-    <div class="buttons">
-      <button id="voiceBtn">🎙️ Start Voice</button>
-      <button id="muteBtn">🔊 Mute</button>
-      <button id="endVoiceBtn">📞 End Voice</button>
-    </div>
+      <label class="field-label" for="usernameInput">
+        Your Chat Nickname
+      </label>
 
-    <audio id="remoteAudio" autoplay playsinline></audio>
-
-    <div id="chatBox" aria-live="polite"></div>
-
-    <div class="message-area">
       <input
         type="text"
-        id="msgInput"
-        placeholder="Type your message..."
-        maxlength="500"
+        id="usernameInput"
+        placeholder="Enter your username"
+        maxlength="20"
         autocomplete="off"
       >
-      <button id="sendBtn">Send</button>
-    </div>
 
-  </main>
+      <div class="status-row">
+        <div class="online-pill">
+          <span class="online-dot"></span>
+          <span id="onlineCount">0</span> Users Online
+        </div>
 
-  <footer>
-    © 2026 TalkToSmile. Chat • Meet • Be Yourself.
-  </footer>
+        <div id="status" role="status" aria-live="polite">
+          Status: Connecting...
+        </div>
+      </div>
 
-  <!-- Socket.IO client library -->
-  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+      <div class="button-group">
+        <button class="btn primary" id="startBtn" type="button">
+          🚀 Start Chat
+        </button>
 
-  <!-- Main application JavaScript -->
-  <script src="script.js?v=7"></script>
+        <button class="btn next" id="nextBtn" type="button">
+          ⏭ Next Stranger
+        </button>
+
+        <button class="btn danger" id="disconnectBtn" type="button">
+          ✕ Disconnect
+        </button>
+      </div>
+
+      <div class="button-group">
+        <button class="btn voice" id="voiceBtn" type="button">
+          🎙 Start Voice
+        </button>
+
+        <button class="btn voice" id="muteBtn" type="button">
+          🔊 Mute
+        </button>
+
+        <button class="btn voice" id="endVoiceBtn" type="button">
+          📞 End Voice
+        </button>
+      </div>
+
+      <audio id="remoteAudio" autoplay playsinline></audio>
+
+      <div class="chat-heading">
+        <span>💬 Live Messages</span>
+        <small>Private conversation</small>
+      </div>
+
+      <div id="chatBox">
+        <div class="chat-placeholder">
+          <div style="font-size:42px">💬</div>
+          <strong>Your conversation starts here</strong>
+          <span>Press Start Chat to meet someone new.</span>
+        </div>
+      </div>
+
+      <div class="message-area">
+        <input
+          type="text"
+          id="msgInput"
+          placeholder="Write a message..."
+          maxlength="500"
+          autocomplete="off"
+        >
+
+        <button id="sendBtn" type="button">
+          Send ➤
+        </button>
+      </div>
+
+    </main>
+
+    <footer>
+      <strong>TalkToSmile</strong> — Chat • Meet • Be Yourself<br>
+      Free random text and voice chat. No registration required.<br>
+      © 2026 TalkToSmile. All rights reserved.
+    </footer>
+
+  </div>
+
+  <!-- IMPORTANT: script.js uses ES module imports -->
+  <script type="module" src="script.js?v=8"></script>
 
 </body>
 </html>
