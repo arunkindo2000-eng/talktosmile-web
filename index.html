@@ -6,9 +6,25 @@
 
   <title>TalkToSmile - Free Random Chat with Strangers</title>
   <meta name="description" content="Meet new people with TalkToSmile. Enjoy free random text and voice chat online without registration.">
-  <meta name="keywords" content="TalkToSmile, random chat, stranger chat, free voice chat, online text chat">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#080d1b">
+  <link rel="canonical" href="https://talktosmile.online/">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <!-- Social Media SEO -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="TalkToSmile - Free Random Chat with Strangers">
+  <meta property="og:description" content="Meet new people with free random text and voice chat. No registration required.">
+  <meta property="og:url" content="https://talktosmile.online/">
+  <meta property="og:site_name" content="TalkToSmile">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="TalkToSmile - Free Random Chat with Strangers">
+  <meta name="twitter:description" content="Meet new people with free random text and voice chat. No registration required.">
 
   <style>
     * {
@@ -19,12 +35,13 @@
 
     body {
       min-height: 100vh;
+      min-height: 100dvh;
       padding: 18px;
       color: #f8fafc;
       background:
         radial-gradient(ellipse at 50% -10%, #173b70 0%, transparent 45%),
         #080d1b;
-      font-family: Inter, Arial, sans-serif;
+      font-family: Inter, Arial, Helvetica, sans-serif;
     }
 
     button, input {
@@ -33,6 +50,17 @@
 
     button {
       cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    button:focus-visible,
+    a:focus-visible {
+      outline: 2px solid #22d3ee;
+      outline-offset: 2px;
     }
 
     .container {
@@ -129,6 +157,7 @@
       border: 1px solid rgba(148, 163, 184, .18);
       border-radius: 28px;
       box-shadow: 0 25px 90px rgba(0, 0, 0, .35);
+      -webkit-backdrop-filter: blur(20px);
       backdrop-filter: blur(20px);
     }
 
@@ -214,15 +243,15 @@
       color: white;
       font-size: 14px;
       font-weight: 800;
-      transition: .2s;
+      transition: transform .2s, filter .2s;
     }
 
-    .btn:hover {
+    .btn:hover:not(:disabled) {
       transform: translateY(-2px);
       filter: brightness(1.15);
     }
 
-    .btn:active {
+    .btn:active:not(:disabled) {
       transform: scale(.97);
     }
 
@@ -291,6 +320,10 @@
       font-size: 16px;
     }
 
+    .chat-emoji {
+      font-size: 42px;
+    }
+
     /* MESSAGE INPUT */
 
     .message-area {
@@ -309,7 +342,7 @@
       border: 1px solid #344966;
       border-radius: 13px;
       outline: none;
-      font-size: 15px;
+      font-size: 16px; /* 16px prevents iOS zoom on focus */
     }
 
     #sendBtn {
@@ -343,7 +376,15 @@
       color: #22d3ee;
     }
 
-    @media(max-width: 600px) {
+    footer a {
+      color: #94a3b8;
+    }
+
+    footer a:hover {
+      color: #22d3ee;
+    }
+
+    @media (max-width: 600px) {
       body {
         padding: 12px;
       }
@@ -397,6 +438,12 @@
         padding: 0 15px;
       }
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      .btn {
+        transition: none;
+      }
+    }
   </style>
 </head>
 
@@ -445,7 +492,7 @@
       <div class="status-row">
         <div class="online-pill">
           <span class="online-dot"></span>
-          <span id="onlineCount">0</span> Users Online
+          <span><span id="onlineCount">0</span> Users Online</span>
         </div>
 
         <div id="status" role="status" aria-live="polite">
@@ -485,12 +532,12 @@
 
       <div class="chat-heading">
         <span>💬 Live Messages</span>
-        <small>Private conversation</small>
+        <small>Be kind and stay safe</small>
       </div>
 
-      <div id="chatBox">
+      <div id="chatBox" role="log" aria-live="polite" aria-label="Chat messages">
         <div class="chat-placeholder">
-          <div style="font-size:42px">💬</div>
+          <div class="chat-emoji" aria-hidden="true">💬</div>
           <strong>Your conversation starts here</strong>
           <span>Press Start Chat to meet someone new.</span>
         </div>
@@ -503,6 +550,7 @@
           placeholder="Write a message..."
           maxlength="500"
           autocomplete="off"
+          aria-label="Type your message"
         >
 
         <button id="sendBtn" type="button">
@@ -515,6 +563,10 @@
     <footer>
       <strong>TalkToSmile</strong> — Chat • Meet • Be Yourself<br>
       Free random text and voice chat. No registration required.<br>
+      You must be 18 or older to use this site. Never share personal information with strangers.<br>
+      <a href="about.html">About</a> |
+      <a href="privacy.html">Privacy Policy</a> |
+      <a href="terms.html">Terms &amp; Conditions</a><br>
       © 2026 TalkToSmile. All rights reserved.
     </footer>
 
