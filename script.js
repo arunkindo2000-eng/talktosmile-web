@@ -15,6 +15,56 @@ const ICE_SERVERS = [
 ];
 
 // ======================================
+// FIREBASE (optional - chat works even if this fails)
+// ======================================
+
+// Paste your config from Firebase Console > Project settings > Your apps.
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_APP_ID",
+  measurementId: "YOUR_MEASUREMENT_ID"
+};
+
+const FIREBASE_VERSION = "10.12.2";
+let analytics = null;
+let logEventFn = null;
+
+async function initFirebase() {
+  if (FIREBASE_CONFIG.apiKey.startsWith("YOUR_")) return;
+
+  try {
+    const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
+
+    const [appMod, authMod, analyticsMod] = await Promise.all([
+      import(base + "firebase-app.js"),
+      import(base + "firebase-auth.js"),
+      import(base + "firebase-analytics.js")
+    ]);
+
+    const app = appMod.initializeApp(FIREBASE_CONFIG);
+
+    await authMod.signInAnonymously(authMod.getAuth(app)).catch(() => {});
+
+    if (await analyticsMod.isSupported()) {
+      analytics = analyticsMod.getAnalytics(app);
+      logEventFn = analyticsMod.logEvent;
+    }
+  } catch (error) {
+    console.warn("Firebase unavailable:", error);
+  }
+}
+
+function track(name, params = {}) {
+  try {
+    if (analytics && logEventFn) logEventFn(analytics, name, params);
+  } catch (error) {
+    /* ignore analytics errors */
+  }
+}
+
+// ======================================
 // ELEMENTS
 // ======================================
 
@@ -204,6 +254,7 @@ async function startVoice() {
     await peer.setLocalDescription(offer);
 
     socket.emit("offer", { roomId, sdp: offer });
+    track("voice_start");
 
     addMessage("system", "", "Calling stranger...");
   } catch (error) {
@@ -251,6 +302,7 @@ function startChat() {
 
   resetChatBox("Looking for someone to talk to...");
   socket.emit("start-chat", { username });
+  track("chat_start");
   setState("waiting");
   setStatus("Searching for a stranger...");
 }
@@ -324,6 +376,7 @@ socket.on("matched", (data) => {
   resetChatBox(`You are now connected with ${partnerName}. Say hi! 👋`);
   setState("chatting");
   setStatus(`Chatting with ${partnerName}`);
+  track("chat_matched");
   msgInput.focus();
 });
 
@@ -430,3 +483,4 @@ usernameInput.addEventListener("keydown", (event) => {
 
 setStatus("Connecting to server...");
 updateButtons();
+initFirebase();
