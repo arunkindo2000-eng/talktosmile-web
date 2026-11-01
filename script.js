@@ -1,578 +1,432 @@
-import { io } from "https://cdn.socket.io/4.8.1/socket.io.esm.min.js";
+import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
 
 // ======================================
-// TALKTOSMILE - CLIENT V1
+// CONFIG  (change SERVER_URL!)
 // ======================================
 
-const SERVER_URL = "https://talktosmile-server.onrender.com";
+// Your backend URL (Render / Railway etc). Must be https://
+const SERVER_URL = "https://YOUR-SERVER-URL.onrender.com";
+
+const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" }
+  // Add a TURN server so voice works on mobile data / strict networks:
+  // { urls: "turn:YOUR_TURN_HOST:3478", username: "USER", credential: "PASS" }
+];
+
+// ======================================
+// ELEMENTS
+// ======================================
 
 const $ = (id) => document.getElementById(id);
 
 const usernameInput = $("usernameInput");
 const onlineCount = $("onlineCount");
 const statusEl = $("status");
-
 const startBtn = $("startBtn");
 const nextBtn = $("nextBtn");
 const disconnectBtn = $("disconnectBtn");
-
 const voiceBtn = $("voiceBtn");
 const muteBtn = $("muteBtn");
 const endVoiceBtn = $("endVoiceBtn");
-
+const remoteAudio = $("remoteAudio");
 const chatBox = $("chatBox");
 const msgInput = $("msgInput");
 const sendBtn = $("sendBtn");
-const remoteAudio = $("remoteAudio");
 
-let socket;
-let isMatched = false;
-let isSearching = false;
-let isInitiator = false;
-let isMuted = false;
-let voiceRequested = false;
+// ======================================
+// STATE
+// ======================================
 
+let state = "idle"; // idle | waiting | chatting
 let roomId = null;
-let peerConnection = null;
+let partnerName = "Stranger";
+
+let pc = null;
 let localStream = null;
-let remoteStream = null;
 let pendingCandidates = [];
-
-const ICE_CONFIG = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" }
-  ]
-};
+let muted = false;
 
 // ======================================
-// UI
+// SOCKET
 // ======================================
 
-function status(message) {
-  if (statusEl) statusEl.textContent = message;
+const socket = io(SERVER_URL, {
+  transports: ["websocket", "polling"],
+  reconnectionDelayMax: 5000
+});
+
+// ======================================
+// UI HELPERS
+// ======================================
+
+function setStatus(text) {
+  statusEl.textContent = "Status: " + text;
 }
 
-function updateButtons() {
-  if (startBtn) startBtn.disabled = isSearching || isMatched;
-  if (nextBtn) nextBtn.disabled = !isMatched;
-  if (disconnectBtn) disconnectBtn.disabled = !isSearching && !isMatched;
-  if (voiceBtn) voiceBtn.disabled = !isMatched || voiceRequested;
-  if (muteBtn) muteBtn.disabled = !localStream;
-  if (endVoiceBtn) endVoiceBtn.disabled = !voiceRequested && !localStream;
+function clearPlaceholder() {
+  const placeholder = chatBox.querySelector(".chat-placeholder");
+  if (placeholder) placeholder.remove();
 }
 
-function addMessage(message, type = "system") {
-  if (!chatBox) return;
+function addMessage(kind, name, text) {
+  clearPlaceholder();
 
-  const div = document.createElement("div");
-  div.className = `chat-message ${type}`;
-  div.textContent = message;
+  const row = document.createElement("div");
+  row.style.cssText = "margin:0 0 10px;line-height:1.5;font-size:15px;";
 
-  chatBox.appendChild(div);
+  if (kind === "system") {
+    row.style.cssText += "text-align:center;color:#64748b;font-size:13px;";
+    row.textContent = text;
+  } else {
+    const who = document.createElement("strong");
+    who.style.color = kind === "me" ? "#22d3ee" : "#a78bfa";
+    who.textContent = name + ": ";
+
+    const body = document.createElement("span");
+    body.style.color = "#e2e8f0";
+    body.textContent = text; // textContent prevents HTML injection
+
+    row.append(who, body);
+  }
+
+  chatBox.appendChild(row);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-function clearMessages() {
-  if (chatBox) chatBox.innerHTML = "";
+function resetChatBox(message) {
+  chatBox.textContent = "";
+  if (message) addMessage("system", "", message);
 }
 
-function username() {
-  return usernameInput?.value?.trim().slice(0, 24) || "Guest";
+function updateButtons() {
+  const connected = socket.connected;
+  const voiceActive = !!pc;
+
+  startBtn.disabled = !connected || state !== "idle";
+  nextBtn.disabled = !connected || state === "idle";
+  disconnectBtn.disabled = !connected || state === "idle";
+
+  voiceBtn.disabled = state !== "chatting" || voiceActive;
+  muteBtn.disabled = !voiceActive;
+  endVoiceBtn.disabled = !voiceActive;
+
+  msgInput.disabled = state !== "chatting";
+  sendBtn.disabled = state !== "chatting";
 }
 
-// ======================================
-// SOCKET CONNECTION
-// ======================================
-
-socket = io(SERVER_URL, {
-  transports: ["websocket", "polling"],
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  timeout: 20000
-});
-
-socket.on("connect", () => {
-  console.log("Connected:", socket.id);
-  status("Server connected. Ready to chat.");
+function setState(next) {
+  state = next;
   updateButtons();
-});
+}
 
-socket.on("connect_error", (error) => {
-  console.error("Connection error:", error.message);
-  status("Server connection error. Retrying...");
-});
+// ======================================
+// VOICE (WebRTC)
+// ======================================
 
-socket.on("disconnect", () => {
-  console.log("Server disconnected");
+function closeVoice() {
+  if (pc) {
+    pc.onicecandidate = null;
+    pc.ontrack = null;
+    pc.onconnectionstatechange = null;
+    pc.close();
+    pc = null;
+  }
 
-  isMatched = false;
-  isSearching = false;
-  roomId = null;
+  if (localStream) {
+    localStream.getTracks().forEach((track) => track.stop());
+    localStream = null;
+  }
 
+  pendingCandidates = [];
+  muted = false;
+  muteBtn.textContent = "🔊 Mute";
+  remoteAudio.srcObject = null;
+
+  updateButtons();
+}
+
+async function createPeer() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const peer = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+  stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+
+  peer.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit("ice-candidate", { roomId, candidate: event.candidate });
+    }
+  };
+
+  peer.ontrack = (event) => {
+    remoteAudio.srcObject = event.streams[0];
+    remoteAudio.play().catch(() => {});
+  };
+
+  peer.onconnectionstatechange = () => {
+    if (peer.connectionState === "connected") {
+      addMessage("system", "", "🎙 Voice connected");
+    }
+
+    if (peer.connectionState === "failed") {
+      addMessage("system", "", "Voice connection failed. Try again.");
+      closeVoice();
+    }
+  };
+
+  localStream = stream;
+  pc = peer;
+  updateButtons();
+
+  return peer;
+}
+
+async function flushCandidates() {
+  const queued = pendingCandidates;
+  pendingCandidates = [];
+
+  for (const candidate of queued) {
+    try {
+      await pc.addIceCandidate(candidate);
+    } catch (error) {
+      console.warn("ICE error:", error);
+    }
+  }
+}
+
+async function startVoice() {
+  if (state !== "chatting" || pc) return;
+
+  try {
+    const peer = await createPeer();
+    const offer = await peer.createOffer();
+
+    await peer.setLocalDescription(offer);
+
+    socket.emit("offer", { roomId, sdp: offer });
+
+    addMessage("system", "", "Calling stranger...");
+  } catch (error) {
+    console.error(error);
+    addMessage("system", "", "Could not access microphone. Please allow mic permission.");
+    closeVoice();
+  }
+}
+
+function endVoice() {
+  if (pc) socket.emit("voice-end");
   closeVoice();
-  updateButtons();
+  addMessage("system", "", "Voice ended");
+}
 
-  status("Server disconnected. Reconnecting...");
-});
+function toggleMute() {
+  if (!localStream) return;
 
-socket.on("online-count", (count) => {
-  if (onlineCount) onlineCount.textContent = count;
-});
+  muted = !muted;
+
+  localStream.getAudioTracks().forEach((track) => {
+    track.enabled = !muted;
+  });
+
+  muteBtn.textContent = muted ? "🔇 Unmute" : "🔊 Mute";
+}
 
 // ======================================
-// START CHAT
+// CHAT ACTIONS
 // ======================================
 
 function startChat() {
   if (!socket.connected) {
-    status("Connecting to server. Please wait...");
-    socket.connect();
+    setStatus("Server not connected yet...");
     return;
   }
 
-  if (isSearching || isMatched) return;
+  const username = usernameInput.value.trim();
 
-  clearMessages();
-  closeVoice();
-
-  isSearching = true;
-  isMatched = false;
-
-  status("Finding a stranger...");
-  updateButtons();
-
-  socket.emit("start-chat", username());
-}
-
-socket.on("waiting", () => {
-  isSearching = true;
-  isMatched = false;
-
-  status("Waiting for a stranger...");
-  addMessage("Searching for someone to chat with...", "system");
-  updateButtons();
-});
-
-// ======================================
-// MATCHED
-// ======================================
-
-socket.on("matched", (data = {}) => {
-  isSearching = false;
-  isMatched = true;
-
-  roomId = data.roomId || null;
-  isInitiator = Boolean(data.initiator);
-
-  status("Connected with " + (data.username || "Stranger"));
-  addMessage("You are connected! Say hello.", "system");
-
-  updateButtons();
-});
-
-// ======================================
-// NEXT STRANGER
-// ======================================
-
-function nextStranger() {
-  if (!socket.connected || !isMatched) return;
-
-  closeVoice();
-
-  isMatched = false;
-  isSearching = true;
-  roomId = null;
-
-  status("Finding next stranger...");
-  clearMessages();
-  updateButtons();
-
-  socket.emit("next-stranger");
-}
-
-// ======================================
-// DISCONNECT
-// ======================================
-
-function disconnectChat() {
-  if (socket.connected) {
-    socket.emit("stop-chat");
+  if (!username) {
+    setStatus("Please enter a nickname first");
+    usernameInput.focus();
+    return;
   }
 
-  closeVoice();
-
-  isMatched = false;
-  isSearching = false;
-  roomId = null;
-
-  status("You disconnected.");
-  addMessage("You left the chat.", "system");
-
-  updateButtons();
+  resetChatBox("Looking for someone to talk to...");
+  socket.emit("start-chat", { username });
+  setState("waiting");
+  setStatus("Searching for a stranger...");
 }
 
-socket.on("chat-stopped", () => {
-  isMatched = false;
-  isSearching = false;
-  updateButtons();
-});
-
-socket.on("partner-disconnected", () => {
+function nextStranger() {
   closeVoice();
-
-  isMatched = false;
-  isSearching = false;
   roomId = null;
 
-  status("Stranger disconnected.");
-  addMessage("Your stranger has disconnected.", "system");
+  resetChatBox("Looking for someone new...");
+  socket.emit("next-stranger");
+  setState("waiting");
+  setStatus("Searching for a stranger...");
+}
 
-  updateButtons();
-});
+function disconnectChat() {
+  closeVoice();
+  roomId = null;
 
-// ======================================
-// TEXT CHAT
-// ======================================
+  socket.emit("stop-chat");
+  setState("idle");
+  setStatus("Disconnected");
+  addMessage("system", "", "You disconnected.");
+}
 
 function sendMessage() {
-  const message = msgInput?.value?.trim();
+  const text = msgInput.value.trim();
 
-  if (!message || !isMatched || !socket.connected) return;
+  if (!text || state !== "chatting") return;
 
-  socket.emit("message", message);
-
-  addMessage("You: " + message, "sent");
+  socket.emit("message", { text });
+  addMessage("me", "You", text);
 
   msgInput.value = "";
   msgInput.focus();
 }
 
-socket.on("message", (data) => {
-  const text = typeof data === "string" ? data : data?.text;
-  const sender = typeof data === "object"
-    ? (data.username || "Stranger")
-    : "Stranger";
+// ======================================
+// SOCKET EVENTS
+// ======================================
 
-  if (text) addMessage(sender + ": " + text, "received");
+socket.on("connect", () => {
+  setStatus("Connected ✅");
+  updateButtons();
 });
 
-// ======================================
-// WEBRTC
-// ======================================
+socket.on("connect_error", () => {
+  setStatus("Server unreachable, retrying... (can take up to a minute)");
+  updateButtons();
+});
 
-async function getMicrophone() {
-  if (localStream) return localStream;
+socket.on("disconnect", () => {
+  closeVoice();
+  roomId = null;
+  setState("idle");
+  setStatus("Connection lost, reconnecting...");
+});
 
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Microphone is unavailable. Use HTTPS.");
+socket.on("online-count", (count) => {
+  onlineCount.textContent = count;
+});
+
+socket.on("waiting", () => {
+  setState("waiting");
+  setStatus("Waiting for a stranger to join...");
+});
+
+socket.on("matched", (data) => {
+  roomId = data.roomId;
+  partnerName = data.username || "Stranger";
+
+  resetChatBox(`You are now connected with ${partnerName}. Say hi! 👋`);
+  setState("chatting");
+  setStatus(`Chatting with ${partnerName}`);
+  msgInput.focus();
+});
+
+socket.on("message", (data) => {
+  addMessage("stranger", data.username || partnerName, data.text);
+});
+
+socket.on("partner-disconnected", () => {
+  closeVoice();
+  roomId = null;
+
+  setState("idle");
+  setStatus("Stranger left the chat");
+  addMessage("system", "", "Stranger disconnected. Press Start Chat to find someone new.");
+});
+
+socket.on("chat-stopped", () => {
+  setState("idle");
+});
+
+socket.on("voice-end", () => {
+  if (pc) {
+    closeVoice();
+    addMessage("system", "", "Stranger ended the voice call");
   }
+});
 
-  localStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
-    },
-    video: false
-  });
+// ---- WebRTC signaling ----
 
-  return localStream;
-}
+socket.on("offer", async (data) => {
+  if (state !== "chatting" || pc) return;
 
-async function createPeer() {
-  if (peerConnection) return peerConnection;
+  try {
+    const peer = await createPeer();
 
-  peerConnection = new RTCPeerConnection(ICE_CONFIG);
+    await peer.setRemoteDescription(data.sdp);
+    await flushCandidates();
 
-  remoteStream = new MediaStream();
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
 
-  if (remoteAudio) {
-    remoteAudio.srcObject = remoteStream;
-    remoteAudio.autoplay = true;
-    remoteAudio.playsInline = true;
+    socket.emit("answer", { roomId, sdp: answer });
+
+    addMessage("system", "", "Stranger started a voice call");
+  } catch (error) {
+    console.error(error);
+    addMessage("system", "", "Could not join voice. Please allow mic permission.");
+    closeVoice();
   }
+});
 
-  const stream = await getMicrophone();
+socket.on("answer", async (data) => {
+  if (!pc) return;
 
-  stream.getTracks().forEach(track => {
-    peerConnection.addTrack(track, stream);
-  });
+  try {
+    await pc.setRemoteDescription(data.sdp);
+    await flushCandidates();
+  } catch (error) {
+    console.error(error);
+  }
+});
 
-  peerConnection.ontrack = (event) => {
-    event.streams[0]?.getTracks().forEach(track => {
-      if (!remoteStream.getTracks().some(t => t.id === track.id)) {
-        remoteStream.addTrack(track);
-      }
-    });
+socket.on("ice-candidate", async (data) => {
+  if (!data || !data.candidate) return;
 
-    remoteAudio?.play().catch(console.warn);
-    status("Voice connected!");
-  };
-
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate && isMatched && socket.connected) {
-      socket.emit("ice-candidate", {
-        roomId,
-        candidate: event.candidate
-      });
-    }
-  };
-
-  peerConnection.onconnectionstatechange = () => {
-    const state = peerConnection?.connectionState;
-
-    if (state === "connected") status("Voice connected!");
-    if (state === "failed") status("Voice failed. TURN server may be needed.");
-    if (state === "disconnected") status("Voice reconnecting...");
-  };
-
-  return peerConnection;
-}
-
-// ======================================
-// VOICE START
-// ======================================
-
-async function startVoice() {
-  if (!isMatched) {
-    status("Connect with a stranger first.");
+  if (!pc || !pc.remoteDescription) {
+    pendingCandidates.push(data.candidate);
     return;
   }
 
   try {
-    voiceRequested = true;
-    status("Requesting microphone permission...");
-    updateButtons();
-
-    await createPeer();
-
-    if (isInitiator) {
-      await createOffer();
-    } else {
-      status("Microphone ready. Waiting for voice connection...");
-    }
+    await pc.addIceCandidate(data.candidate);
   } catch (error) {
-    console.error("Voice start error:", error);
-
-    closeVoice();
-    status(error.name === "NotAllowedError"
-      ? "Please allow microphone permission."
-      : "Could not start voice.");
-  }
-
-  updateButtons();
-}
-
-// ======================================
-// OFFER
-// ======================================
-
-async function createOffer() {
-  if (!isMatched || !socket.connected) return;
-
-  const pc = await createPeer();
-
-  if (pc.signalingState !== "stable") return;
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-
-  socket.emit("offer", {
-    roomId,
-    offer: pc.localDescription
-  });
-
-  status("Calling stranger...");
-}
-
-socket.on("offer", async (data) => {
-  try {
-    if (!isMatched) return;
-
-    const offer = data?.offer || data;
-
-    await createPeer();
-
-    await peerConnection.setRemoteDescription(
-      new RTCSessionDescription(offer)
-    );
-
-    await flushCandidates();
-
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-
-    socket.emit("answer", {
-      roomId,
-      answer: peerConnection.localDescription
-    });
-
-    voiceRequested = true;
-    updateButtons();
-
-    status("Connecting voice...");
-  } catch (error) {
-    console.error("Offer error:", error);
-    status("Voice connection error.");
+    console.warn("ICE error:", error);
   }
 });
 
 // ======================================
-// ANSWER
+// BUTTON EVENTS
 // ======================================
 
-socket.on("answer", async (data) => {
-  try {
-    const answer = data?.answer || data;
+startBtn.addEventListener("click", startChat);
+nextBtn.addEventListener("click", nextStranger);
+disconnectBtn.addEventListener("click", disconnectChat);
+voiceBtn.addEventListener("click", startVoice);
+muteBtn.addEventListener("click", toggleMute);
+endVoiceBtn.addEventListener("click", endVoice);
+sendBtn.addEventListener("click", sendMessage);
 
-    if (!peerConnection || !answer) return;
-
-    await peerConnection.setRemoteDescription(
-      new RTCSessionDescription(answer)
-    );
-
-    await flushCandidates();
-
-    status("Voice connecting...");
-  } catch (error) {
-    console.error("Answer error:", error);
-  }
-});
-
-// ======================================
-// ICE CANDIDATES
-// ======================================
-
-socket.on("ice-candidate", async (data) => {
-  try {
-    const candidate = data?.candidate || data;
-    if (!candidate) return;
-
-    if (!peerConnection || !peerConnection.remoteDescription) {
-      pendingCandidates.push(candidate);
-      return;
-    }
-
-    await peerConnection.addIceCandidate(
-      new RTCIceCandidate(candidate)
-    );
-  } catch (error) {
-    console.error("ICE error:", error);
-  }
-});
-
-async function flushCandidates() {
-  if (!peerConnection?.remoteDescription) return;
-
-  const candidates = [...pendingCandidates];
-  pendingCandidates = [];
-
-  for (const candidate of candidates) {
-    try {
-      await peerConnection.addIceCandidate(
-        new RTCIceCandidate(candidate)
-      );
-    } catch (error) {
-      console.error("Queued ICE error:", error);
-    }
-  }
-}
-
-// ======================================
-// MUTE
-// ======================================
-
-function toggleMute() {
-  if (!localStream) return;
-
-  isMuted = !isMuted;
-
-  localStream.getAudioTracks().forEach(track => {
-    track.enabled = !isMuted;
-  });
-
-  if (muteBtn) {
-    muteBtn.textContent = isMuted ? "Unmute" : "Mute";
-  }
-
-  status(isMuted ? "Microphone muted." : "Microphone on.");
-}
-
-// ======================================
-// END VOICE
-// ======================================
-
-function endVoice() {
-  if (socket.connected && isMatched) {
-    socket.emit("voice-end");
-  }
-
-  closeVoice();
-  status("Voice call ended.");
-}
-
-socket.on("voice-end", () => {
-  closeVoice();
-  status("Stranger ended the voice call.");
-});
-
-// ======================================
-// CLEANUP
-// ======================================
-
-function closeVoice() {
-  voiceRequested = false;
-  isMuted = false;
-
-  if (peerConnection) {
-    peerConnection.close();
-    peerConnection = null;
-  }
-
-  if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
-    localStream = null;
-  }
-
-  if (remoteStream) {
-    remoteStream.getTracks().forEach(track => track.stop());
-    remoteStream = null;
-  }
-
-  if (remoteAudio) remoteAudio.srcObject = null;
-
-  pendingCandidates = [];
-
-  if (muteBtn) muteBtn.textContent = "Mute";
-
-  updateButtons();
-}
-
-// ======================================
-// BUTTON CLICK EVENTS
-// ======================================
-
-startBtn?.addEventListener("click", startChat);
-nextBtn?.addEventListener("click", nextStranger);
-disconnectBtn?.addEventListener("click", disconnectChat);
-
-sendBtn?.addEventListener("click", sendMessage);
-voiceBtn?.addEventListener("click", startVoice);
-muteBtn?.addEventListener("click", toggleMute);
-endVoiceBtn?.addEventListener("click", endVoice);
-
-msgInput?.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
+msgInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
     event.preventDefault();
     sendMessage();
   }
 });
 
+usernameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") startChat();
+});
+
 // ======================================
-// INITIALIZE
+// INIT
 // ======================================
 
+setStatus("Connecting to server...");
 updateButtons();
-status("Connecting to TalkToSmile server...");
-console.log("TalkToSmile client initialized.");
