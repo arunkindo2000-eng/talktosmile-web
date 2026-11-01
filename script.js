@@ -5,7 +5,7 @@ import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
 // ======================================
 
 // Your backend URL (Render / Railway etc). Must be https://
-const SERVER_URL = "https://YOUR-SERVER-URL.onrender.com";
+const SERVER_URL = "https://talktosmile-server.onrender.com";
 
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -101,9 +101,12 @@ let muted = false;
 // SOCKET
 // ======================================
 
+const SERVER_URL_MISSING = SERVER_URL.includes("YOUR-SERVER-URL");
+
 const socket = io(SERVER_URL, {
   transports: ["websocket", "polling"],
-  reconnectionDelayMax: 5000
+  reconnectionDelayMax: 5000,
+  autoConnect: !SERVER_URL_MISSING
 });
 
 // ======================================
@@ -344,16 +347,20 @@ function sendMessage() {
 // ======================================
 
 socket.on("connect", () => {
+  onlineCount.textContent = "…";
   setStatus("Connected ✅");
   updateButtons();
 });
 
-socket.on("connect_error", () => {
+socket.on("connect_error", (error) => {
+  console.warn("Socket connect error:", error && error.message);
+  onlineCount.textContent = "–";
   setStatus("Server unreachable, retrying... (can take up to a minute)");
   updateButtons();
 });
 
 socket.on("disconnect", () => {
+  onlineCount.textContent = "–";
   closeVoice();
   roomId = null;
   setState("idle");
@@ -481,6 +488,14 @@ usernameInput.addEventListener("keydown", (event) => {
 // INIT
 // ======================================
 
-setStatus("Connecting to server...");
+onlineCount.textContent = "–";
+
+if (SERVER_URL_MISSING) {
+  setStatus("⚠ Server URL not set in script.js");
+  console.error("Set SERVER_URL at the top of script.js to your backend URL.");
+} else {
+  setStatus("Connecting to server...");
+}
+
 updateButtons();
 initFirebase();
