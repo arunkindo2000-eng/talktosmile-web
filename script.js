@@ -1,4 +1,4 @@
-import { io } from "https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.esm.min.js";
+import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
 
 // ======================================
 // CONFIG  (change SERVER_URL!)
@@ -72,6 +72,8 @@ const $ = (id) => document.getElementById(id);
 
 const usernameInput = $("usernameInput");
 const onlineCount = $("onlineCount");
+const onlineWrap = $("onlineWrap");
+const onlineLabel = $("onlineLabel");
 const statusEl = $("status");
 const startBtn = $("startBtn");
 const nextBtn = $("nextBtn");
@@ -112,6 +114,17 @@ const socket = io(SERVER_URL, {
 // ======================================
 // UI HELPERS
 // ======================================
+
+function setOnline(count) {
+  if (typeof count !== "number") {
+    onlineWrap.hidden = true;
+    return;
+  }
+
+  onlineCount.textContent = count;
+  onlineLabel.textContent = count === 1 ? "User Online" : "Users Online";
+  onlineWrap.hidden = false;
+}
 
 function setStatus(text) {
   statusEl.textContent = "Status: " + text;
@@ -347,20 +360,20 @@ function sendMessage() {
 // ======================================
 
 socket.on("connect", () => {
-  onlineCount.textContent = "…";
+  setOnline(null);
   setStatus("Connected ✅");
   updateButtons();
 });
 
 socket.on("connect_error", (error) => {
   console.warn("Socket connect error:", error && error.message);
-  onlineCount.textContent = "–";
+  setOnline(null);
   setStatus("Server unreachable, retrying... (can take up to a minute)");
   updateButtons();
 });
 
 socket.on("disconnect", () => {
-  onlineCount.textContent = "–";
+  setOnline(null);
   closeVoice();
   roomId = null;
   setState("idle");
@@ -368,7 +381,7 @@ socket.on("disconnect", () => {
 });
 
 socket.on("online-count", (count) => {
-  onlineCount.textContent = count;
+  setOnline(Number(count));
 });
 
 socket.on("waiting", () => {
@@ -488,7 +501,7 @@ usernameInput.addEventListener("keydown", (event) => {
 // INIT
 // ======================================
 
-onlineCount.textContent = "–";
+setOnline(null);
 
 if (SERVER_URL_MISSING) {
   setStatus("⚠ Server URL not set in script.js");
