@@ -20,11 +20,11 @@ const ICE_SERVERS = [
 
 // Paste your config from Firebase Console > Project settings > Your apps.
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  apiKey: "AIzaSyCv6ISry_cbpR89phb1D68wkM4V_DHQPQY",
+  authDomain: "talktosmile-16bca.firebaseapp.com",
+  projectId: "talktosmile-16bca",
+  appId: "1:550139117184:web:2e43df28e41d034a44f065",
+  measurementId: "G-3DN5B2TE4M"
 };
 
 const FIREBASE_VERSION = "10.12.2";
